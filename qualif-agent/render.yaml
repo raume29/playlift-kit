@@ -1,0 +1,21 @@
+# Déploiement en un clic sur Render. Service web : il sert le formulaire ET reçoit les
+# soumissions, donc une seule URL à mettre devant ton calendrier.
+services:
+  - type: web
+    name: qualif-agent
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: python agent.py
+    healthCheckPath: /sante
+    envVars:
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: TELEGRAM_TOKEN
+        sync: false
+      - key: TELEGRAM_CHAT_ID
+        sync: false
+      - key: OFFRE
+        sync: false
+      - key: CALENDRIER
+        sync: false

@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Avant de réserver</title>
+<style>
+  :root { --paper:#F3F3F0; --ink:#111114; --soft:#57574F; --accent:#FF4A1C;
+          --surface:#fff; --hair:#DEDDD5; }
+  @media (prefers-color-scheme: dark) {
+    :root { --paper:#111113; --ink:#F4F3EF; --soft:#A6A69D; --accent:#FF5A2E;
+            --surface:#191A1D; --hair:#2A2B2F; }
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--paper); color:var(--ink); padding:0 20px 64px;
+         font:17px/1.6 -apple-system,"SF Pro Display","Segoe UI",Roboto,sans-serif; }
+  main { max-width:620px; margin:0 auto; }
+  h1 { font-size:clamp(26px,5vw,36px); line-height:1.15; margin:44px 0 8px; }
+  p.chapeau { color:var(--soft); margin:0 0 28px; }
+  label { display:block; margin:22px 0 6px; font-weight:600; }
+  .aide { font-weight:400; color:var(--soft); font-size:15px; }
+  input, textarea, select {
+    width:100%; padding:13px 14px; border:1px solid var(--hair); border-radius:11px;
+    background:var(--surface); color:inherit; font:inherit; }
+  textarea { min-height:96px; resize:vertical; }
+  button { margin-top:28px; width:100%; padding:15px; border:0; border-radius:999px;
+           background:var(--accent); color:#141414; font:600 17px/1 inherit; cursor:pointer; }
+  button[disabled] { opacity:.55; cursor:default; }
+  #fin { display:none; }
+  #fin a { color:var(--accent); }
+</style>
+</head>
+<body>
+<main>
+  <div id="formulaire">
+    <h1>Avant de réserver un créneau</h1>
+    <p class="chapeau">Cinq questions, deux minutes. Elles évitent qu'on passe 45 minutes à découvrir qu'on ne peut pas s'aider.</p>
+
+    <form id="f">
+      <label>Ton prénom et ton email
+        <input name="Contact" required placeholder="Camille · camille@exemple.fr">
+      </label>
+
+      <label>Qu'est-ce que tu vends, et à quel prix ?
+        <span class="aide">En une phrase.</span>
+        <textarea name="Offre" required></textarea>
+      </label>
+
+      <label>Qu'est-ce qui bloque aujourd'hui ?
+        <span class="aide">Le plus précis possible. « Je veux plus de clients » ne dit rien.</span>
+        <textarea name="Blocage" required></textarea>
+      </label>
+
+      <label>Combien ça te coûte, à peu près ?
+        <span class="aide">En euros par mois, même approximatif. Si tu ne l'as jamais calculé, écris-le.</span>
+        <input name="Cout" required>
+      </label>
+
+      <label>Qu'est-ce qui t'empêche d'attendre six mois ?
+        <textarea name="Urgence" required></textarea>
+      </label>
+
+      <label>Tu décides seul ?
+        <select name="Decision" required>
+          <option value="">—</option>
+          <option>Oui, je décide seul</option>
+          <option>Avec un associé</option>
+          <option>Je dois en parler à quelqu'un d'autre</option>
+        </select>
+      </label>
+
+      <button type="submit">Envoyer</button>
+    </form>
+  </div>
+
+  <div id="fin">
+    <h1>C'est envoyé.</h1>
+    <p class="chapeau" id="message"></p>
+  </div>
+</main>
+
+<script>
+var CALENDRIER = "{{CALENDRIER}}";
+document.getElementById("f").addEventListener("submit", function (e) {
+  e.preventDefault();
+  var btn = e.target.querySelector("button");
+  btn.disabled = true; btn.textContent = "Un instant…";
+  var data = {};
+  new FormData(e.target).forEach(function (v, k) { data[k] = v; });
+
+  fetch("/", { method: "POST", headers: { "Content-Type": "application/json" },
+               body: JSON.stringify(data) })
+    .then(function (r) { return r.json(); })
+    .then(function (res) {
+      document.getElementById("formulaire").style.display = "none";
+      document.getElementById("fin").style.display = "block";
+      // Un lead écarté ne l'apprend jamais : on ne braque personne, et un tiède
+      // d'aujourd'hui peut devenir un client dans trois mois.
+      var m = document.getElementById("message");
+      if (res.retenu && CALENDRIER && CALENDRIER.indexOf("{{") !== 0) {
+        m.innerHTML = 'Choisis ton créneau : <a href="' + CALENDRIER + '">réserver</a>.';
+      } else {
+        m.textContent = "Je lis ça et je te réponds personnellement sous 24 h.";
+      }
+    })
+    .catch(function () {
+      btn.disabled = false; btn.textContent = "Réessayer";
+    });
+});
+</script>
+</body>
+</html>

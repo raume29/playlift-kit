@@ -1,0 +1,6 @@
+transcripts/*
+!transcripts/.gitkeep
+.env
+sessions.json
+__pycache__/
+.DS_Store

@@ -1,0 +1,20 @@
+# Déploiement en un clic sur Render (offre gratuite suffisante).
+# Le disque garde les sessions : sans lui, un redéploiement coupe l'appel en cours.
+services:
+  - type: worker
+    name: sparring-bot
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: python bot.py
+    envVars:
+      - key: TELEGRAM_TOKEN
+        sync: false
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: DATA_DIR
+        value: /data
+    disk:
+      name: data
+      mountPath: /data
+      sizeGB: 1
