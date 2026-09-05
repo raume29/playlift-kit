@@ -51,6 +51,7 @@ outils de visio savent les exporter), puis :
 | `/brief` | Transforme les notes de ton setter en brief d'appel exploitable par un closer |
 | `/tri` | Trie tes messages entrants (DM, commentaires) et sort les leads chauds, classés |
 | `/plafond` | Calcule ce que ton agenda te coûte chaque mois, en euros, à partir de tes chiffres |
+| `/posts` | Écrit avec toi ton **post lead magnet** en 9 blocs : objectif, 10 accroches notées, corps bloc par bloc, audit valeur, crible mobile, texte de l'image, message d'envoi, relance J+3 et calendrier de la semaine |
 
 ### Ceux que tu déploies
 
