@@ -1,0 +1,49 @@
+<!doctype html>
+<meta charset="utf-8" />
+<title>Machine à commentaires</title>
+<style>
+  body { width: 360px; margin: 0; padding: 14px; font: 13px/1.4 system-ui, sans-serif; color: #1c1f23; }
+  h1 { font-size: 13px; margin: 0 0 4px; }
+  .sous { font-size: 11px; color: #6b7280; margin: 0 0 10px; }
+  label { display: block; font-size: 11px; color: #6b7280; margin: 10px 0 3px; }
+  input, select, textarea { width: 100%; box-sizing: border-box; padding: 6px 8px; font-size: 12px;
+          border: 1px solid #d1d5db; border-radius: 6px; font-family: inherit; }
+  textarea { min-height: 64px; resize: vertical; }
+  .ligne { display: flex; gap: 6px; margin-top: 12px; }
+  button { flex: 1; padding: 7px; font-size: 12px; font-weight: 600; border-radius: 999px;
+           border: 1px solid #d1d5db; background: #fff; cursor: pointer; }
+  .principal { background: #ff6b1a; border-color: #ff6b1a; color: #fff; }
+  #statut { margin-top: 10px; font-size: 11px; color: #6b7280; min-height: 15px; }
+  .ok { color: #16794c; } .ko { color: #c0392b; }
+  details { margin-top: 12px; }
+  summary { font-size: 11px; color: #6b7280; cursor: pointer; }
+  a { color: #ff6b1a; }
+</style>
+<h1>Machine à commentaires LinkedIn</h1>
+<p class="sous">Ta clé reste dans ton navigateur et ne part qu'à Anthropic.</p>
+
+<label for="cle">Clé API Anthropic (<a href="https://console.anthropic.com/settings/keys" target="_blank">la créer</a>)</label>
+<input id="cle" type="password" placeholder="sk-ant-…" />
+
+<label for="prenom">Ton prénom</label>
+<input id="prenom" placeholder="Romain" />
+
+<label for="modele">Modèle</label>
+<select id="modele"></select>
+
+<details>
+  <summary>Ma voix, mon terrain, mes exemples (ce qui fait la différence)</summary>
+  <label for="terrain">Mon terrain : ce que je vends, à qui, ce que j'ai vu chez mes clients (chiffres bienvenus)</label>
+  <textarea id="terrain" placeholder="Je vends des sites à des restaurateurs. Un client a doublé ses réservations en… "></textarea>
+  <label for="voix">Ma voix : comment j'écris</label>
+  <textarea id="voix" placeholder="Direct, tutoiement, phrases courtes…"></textarea>
+  <label for="exemples">Mes commentaires qui ont porté (un par ligne, commençant par « - »). Vide = les 6 de Romain.</label>
+  <textarea id="exemples" placeholder="- Vrai. Mais…"></textarea>
+</details>
+
+<div class="ligne">
+  <button id="enregistrer" class="principal">Enregistrer</button>
+  <button id="tester">Tester la clé</button>
+</div>
+<div id="statut"></div>
+<script src="popup.js"></script>

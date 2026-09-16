@@ -57,6 +57,7 @@ outils de visio savent les exporter), puis :
 
 | Dossier | Ce que tu obtiens |
 |---|---|
+| [`extension-commentaire/`](extension-commentaire/) | Une **extension Chrome** branchée sur Claude avec ta clé : sous chaque post LinkedIn, trois commentaires dans ta voix (long, court, humain). Tu choisis, tu publies. Aucun serveur entre les deux. |
 | [`sparring-bot/`](sparring-bot/) | Un **bot Telegram** qui joue un prospect difficile. Tu lui parles, il temporise, il négocie, il te sort « je vais réfléchir ». Tu t'entraînes sur lui au lieu de brûler tes vrais leads. Déploiement en 10 minutes, hébergement gratuit. |
 | [`qualif-agent/`](qualif-agent/) | Un **agent de qualification** : un formulaire devant ton calendrier qui note chaque lead entrant (budget, urgence, décideur) et t'envoie le verdict sur Telegram avant que le créneau ne soit pris. |
 

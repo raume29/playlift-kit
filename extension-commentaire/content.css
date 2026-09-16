@@ -1,0 +1,48 @@
+.plft-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 6px 0 4px;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+.plft-btn {
+  border: 1px solid rgba(0, 0, 0, 0.18);
+  background: #fff;
+  color: #1c1f23;
+  border-radius: 999px;
+  padding: 3px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 18px;
+  cursor: pointer;
+}
+.plft-btn:hover:not(:disabled) { background: #f3f4f6; }
+.plft-btn:disabled { opacity: 0.45; cursor: default; }
+.plft-primary {
+  background: #ff6b1a;
+  border-color: #ff6b1a;
+  color: #fff;
+}
+.plft-primary:hover:not(:disabled) { background: #e85f14; }
+.plft-statut { font-size: 11px; color: #6b7280; }
+.plft-choix {
+  border: 1px solid rgba(0, 0, 0, 0.18);
+  background: #fff;
+  color: #1c1f23;
+  border-radius: 6px;
+  padding: 2px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 16px;
+  cursor: pointer;
+}
+.plft-choix:hover { background: #f3f4f6; }
+.plft-choix.plft-actif { background: #1c1f23; color: #fff; border-color: #1c1f23; }
+.plft-choix small { font-weight: 400; opacity: 0.7; margin-left: 3px; }
+.plft-attente { color: #ff6b1a; }
+.plft-erreur { color: #c0392b; }
+@media (prefers-color-scheme: dark) {
+  .plft-btn { background: #1c1f23; color: #e8eaed; border-color: rgba(255, 255, 255, 0.2); }
+  .plft-btn:hover:not(:disabled) { background: #2a2e33; }
+  .plft-primary, .plft-primary:hover:not(:disabled) { background: #ff6b1a; color: #fff; }
+}
