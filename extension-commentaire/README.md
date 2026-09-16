@@ -7,17 +7,44 @@ choisis, tu retouches, tu publies. Rien ne part tout seul.
 Elle tourne avec **ta** clé API Anthropic, depuis **ton** navigateur, sans aucun serveur
 entre les deux. Le prompt est dans `prompt.js`, en clair : modifie-le.
 
-## Installation (5 minutes)
+## Installation (5 minutes, dans l'ordre)
 
-1. Télécharge ce dossier (`extension-commentaire/`) ou clone le dépôt.
-2. Chrome : ouvre `chrome://extensions`, active **Mode développeur** (en haut à droite),
-   clique **Charger l'extension non empaquetée**, choisis le dossier `extension-commentaire`.
-3. Crée une clé sur [console.anthropic.com/settings/keys](https://console.anthropic.com/settings/keys)
-   (compte à recharger : un commentaire coûte quelques centimes).
-4. Clique l'icône de l'extension, colle la clé, ton prénom, **Tester la clé**, **Enregistrer**.
-5. Ouvre LinkedIn, clique dans un champ de commentaire : la barre **⚡ Commentaire** apparaît.
+### 1. Ta clé Anthropic
 
-Raccourci : `⌘⇧K` (ou `Ctrl⇧K`) depuis le champ de commentaire.
+C'est un compte API, différent de l'abonnement Claude Pro ou Max : il faut cette clé même si
+tu payes déjà un abonnement.
+
+1. [console.anthropic.com](https://console.anthropic.com) : crée un compte.
+2. **Billing** : ajoute une carte et charge **5 $** (prépayé ; sans crédit la clé répond
+   « credit balance is too low »). 5 $ = plusieurs centaines de commentaires.
+3. **Spend limit** : 10 $ par mois. Tu ne dépenseras jamais plus.
+4. **API Keys › Create Key**, copie la clé `sk-ant-…` tout de suite (affichée une seule fois).
+
+### 2. L'extension dans Chrome
+
+1. Télécharge ou clone ce dossier. Garde-le dans un endroit stable (Documents, pas
+   Téléchargements) : Chrome le relit à chaque démarrage.
+2. `chrome://extensions` › active **Mode développeur** (en haut à droite).
+3. **Charger l'extension non empaquetée** › choisis le dossier `extension-commentaire`
+   (celui qui contient `manifest.json`).
+4. Clique l'icône de l'extension (pièce de puzzle › « Machine à commentaires »). Colle la
+   clé, ton prénom, **Tester la clé** → tu dois lire « Clé OK ». Puis **Enregistrer**.
+5. Ouvre LinkedIn (recharge la page si elle était déjà ouverte), clique dans un champ de
+   commentaire : la barre **⚡ Commentaire** apparaît au-dessus. Raccourci `⌘⇧K` / `Ctrl⇧K`.
+
+**Coût** : 2 à 4 centimes par commentaire avec Opus 5, moins d'un centime avec Sonnet 5.
+
+### Si ça ne marche pas
+
+| Message | Cause | Quoi faire |
+|---|---|---|
+| clé absente | pas enregistrée, ou espace collé | recolle, Tester, Enregistrer |
+| clé refusée | clé fausse ou supprimée | crée une nouvelle clé |
+| credit balance is too low | aucun crédit | Billing › ajoute 5 $ |
+| la barre n'apparaît pas | page ouverte avant l'installation | recharge LinkedIn ; vérifie `chrome://extensions` (activée, pas d'erreur rouge) |
+| délai dépassé | Opus > 90 s, rare | reclique |
+
+Le dossier ne doit pas être supprimé ni déplacé : Chrome dirait « extension corrompue ».
 
 ## Les trois registres
 
