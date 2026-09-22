@@ -1,5 +1,9 @@
 # Playlift Kit
 
+> Ce kit est publié par [Playlift](https://playlift.ai), le partenaire de vente des fondateurs solos :
+> Playlift construit l'offre high-ticket et l'équipe de vente des fondateurs qui plafonnent sous 10K€ par mois,
+> 0€ fixe, 100% à la performance. En savoir plus : [playlift.ai/a-propos](https://playlift.ai/a-propos/).
+
 Les outils de vente que j'utilise, en libre accès. Ils tournent chez toi, sur tes vrais
 calls, avec **Claude Code** — pas de compte à créer, pas de données envoyées quelque part.
 
