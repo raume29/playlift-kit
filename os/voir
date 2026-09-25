@@ -1,0 +1,56 @@
+#!/bin/bash
+# voir <fichier|url>   → l'affiche dans OS KADANS (le lance si besoin)
+# voir                 → montre la fenêtre
+# voir quitter         → ferme l'OS
+# voir redemarrer      → relance l'OS, sessions Claude reprises dans leurs onglets
+# voir terminaux       → liste les terminaux (id, dossier, session)
+ICI="$(cd "$(dirname "$(readlink "$0" || echo "$0")")" 2>/dev/null && pwd)"
+[ -f "$ICI/app.py" ] || ICI="$(cd "$(dirname "$0")" && pwd)"
+PY="$ICI/.venv/bin/python"
+URL="http://127.0.0.1:${VITRINE_PORT:-8799}"
+APP="$(cat "$ICI/.app-chemin" 2>/dev/null)"
+JETON_FICHIER="$ICI/.jeton-${VITRINE_PORT:-8799}"      # posé par l'OS à son démarrage (0600)
+api() { curl -s -H "X-Jeton: $(cat "$JETON_FICHIER" 2>/dev/null)" "$@"; }
+
+vivante() { api -f -m 1 "$URL/etat" >/dev/null 2>&1; }
+
+lancer() {
+  if [ -n "$APP" ] && [ -d "$APP" ] && [ -z "$VITRINE_PORT" ]; then
+    open -a "$APP"
+  else
+    nohup "$PY" "$ICI/app.py" >>"$ICI/os.log" 2>&1 </dev/null &
+    disown
+  fi
+  for i in $(seq 1 80); do vivante && return 0; sleep 0.25; done
+  echo "OS KADANS ne démarre pas (voir $ICI/os.log)" >&2; return 1
+}
+
+case "$1" in
+  quitter)    api -m 2 "$URL/quitter" >/dev/null; exit 0;;
+  redemarrer) if vivante; then api -m 2 "$URL/redemarrer" >/dev/null; echo "OS KADANS redémarre, les sessions reprennent dans leurs onglets."; else lancer; fi; exit $?;;
+  terminaux)  api -m 2 "$URL/terminaux"; echo; exit 0;;
+esac
+
+vivante || lancer || exit 1
+
+if [ -z "$1" ]; then api -m 2 "$URL/montrer" >/dev/null; exit 0; fi
+
+cible="$1"
+case "$cible" in
+  http://*|https://*) ;;
+  *) d="$(cd "$(dirname "$cible")" 2>/dev/null && pwd)"; [ -n "$d" ] || { echo "introuvable : $cible" >&2; exit 1; }; cible="$d/$(basename "$cible")";;
+esac
+"$PY" - "$cible" "$URL" "$JETON_FICHIER" <<'PYEOF'
+import json, os, sys, urllib.request
+# VITRINE_TERMINAL : le chat (terminal de l'OS) d'où part la commande ; le livrable se range dans ses onglets
+d = json.dumps({"cible": sys.argv[1], "terminal": os.environ.get("VITRINE_TERMINAL")}).encode()
+try: jeton = open(sys.argv[3]).read().strip()
+except OSError: jeton = ""
+r = urllib.request.Request(sys.argv[2] + "/voir", d, {"Content-Type": "application/json", "X-Jeton": jeton})
+try:
+    rep = json.load(urllib.request.urlopen(r, timeout=8))
+except Exception as x:
+    print("OS KADANS injoignable :", x, file=sys.stderr); sys.exit(1)
+if rep.get("ok"): print("ok")
+else: print("introuvable : " + sys.argv[1], file=sys.stderr); sys.exit(1)
+PYEOF

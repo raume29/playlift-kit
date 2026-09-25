@@ -1,0 +1,9 @@
+depots/
+profil/
+etat.json
+os.log
+jarvis.env
+.venv/
+__pycache__/
+.jeton-*
+.app-chemin

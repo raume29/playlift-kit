@@ -1,0 +1,48 @@
+{
+  "name": "Cybernet",
+  "base": "dark",
+  "overrides": {
+    "claude": "#22d3ee",
+    "claudeShimmer": "#67e8f9",
+    "text": "#cdeef7",
+    "inverseText": "#04070a",
+    "subtle": "#33474f",
+    "inactive": "#5b7480",
+    "suggestion": "#f000ff",
+    "permission": "#22d3ee",
+    "permissionShimmer": "#67e8f9",
+    "remember": "#a78bfa",
+
+    "briefLabelClaude": "#22d3ee",
+    "briefLabelYou": "#ff2d95",
+
+    "userMessageBackground": "#1c0a2b",
+    "userMessageBackgroundHover": "#2c1142",
+    "messageActionsBackground": "#12161c",
+    "bashMessageBackgroundColor": "#08170f",
+    "memoryBackgroundColor": "#150f26",
+    "selectionBg": "#164e63",
+
+    "promptBorder": "#22d3ee",
+    "promptBorderShimmer": "#67e8f9",
+    "planMode": "#a78bfa",
+    "autoAccept": "#22ffa7",
+    "bashBorder": "#22ffa7",
+    "fastMode": "#ff2d95",
+
+    "success": "#22ffa7",
+    "error": "#ff3860",
+    "warning": "#fbbf24",
+    "merged": "#a78bfa",
+
+    "diffAdded": "#04231a",
+    "diffRemoved": "#2a0b12",
+    "diffAddedDimmed": "#08120e",
+    "diffRemovedDimmed": "#160a0d",
+    "diffAddedWord": "#0f5c43",
+    "diffRemovedWord": "#7a1020",
+
+    "rate_limit_fill": "#22d3ee",
+    "rate_limit_empty": "#243036"
+  }
+}
