@@ -23,13 +23,13 @@ que le prospect dit **avant** l'objection pour la démontrer.
 ## Le format de sortie
 
 ```
-APPELS ANALYSÉS : [nombre] — dont [nombre] perdus
+APPELS ANALYSÉS : [nombre], dont [nombre] perdus
 
 LES 3 OBJECTIONS QUI TE COÛTENT LE PLUS
 Pour chacune :
   • L'objection telle qu'elle est dite : « … » (apparue dans X appels sur Y)
   • Ce qu'il y a vraiment derrière, et ce qui te permet de l'affirmer (citations)
-  • Le moment de TON appel qui la fabrique — parce qu'une objection récurrente est
+  • Le moment de TON appel qui la fabrique, parce qu'une objection récurrente est
     presque toujours produite par une étape manquante en amont
   • La réponse, mot pour mot, à dire la prochaine fois
   • Ce qu'il faut changer PLUS TÔT dans l'appel pour qu'elle ne se pose plus

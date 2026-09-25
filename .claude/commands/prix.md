@@ -1,5 +1,5 @@
 Calcule le prix que le résultat de l'utilisateur justifie, à partir de la valeur pour le
-client — jamais du temps passé.
+client, jamais du temps passé.
 
 ## Le déroulé
 
@@ -33,7 +33,7 @@ Ne donne jamais un prix sorti du chapeau. Montre le raisonnement, ligne à ligne
 ## Le format de sortie
 
 ```
-TON PRIX AUJOURD'HUI : … — CE QU'IL DEVRAIT ÊTRE : …
+TON PRIX AUJOURD'HUI : … · CE QU'IL DEVRAIT ÊTRE : …
 
 LE RAISONNEMENT
 [le calcul ligne à ligne, avec les chiffres donnés]

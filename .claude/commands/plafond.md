@@ -26,7 +26,7 @@ Questions **une par une**, avec des ordres de grandeur proposés s'il hésite :
 - **L'arbitrage livraison/vente** (réponse 7) : ce que valent en euros les heures de
   livraison, au prix d'une heure d'appel.
 
-Chiffre tout. Un ordre de grandeur assumé vaut mieux qu'une case vide — mais dis toujours
+Chiffre tout. Un ordre de grandeur assumé vaut mieux qu'une case vide, mais dis toujours
 quand tu estimes, et sur quelle base.
 
 ## Le format de sortie

@@ -3,7 +3,7 @@ Trie les messages entrants de l'utilisateur et sors les leads chauds, classés.
 ## L'entrée
 
 Prends ce qu'il a collé : export de DM LinkedIn, commentaires d'un post, messages
-WhatsApp, réponses à une newsletter. Formats en vrac acceptés — c'est le but. S'il n'a
+WhatsApp, réponses à une newsletter. Formats en vrac acceptés : c'est le but. S'il n'a
 rien collé, demande-lui de coller le bloc de messages.
 
 Demande une seule chose s'il ne l'a pas dit : ce qu'il vend et à qui. Sans ça tu ne peux
@@ -32,7 +32,7 @@ partenariat · emoji seul.
 
 🔥 À CONTACTER AUJOURD'HUI ([nombre])
 Pour chacun :
-  • Qui : [nom] — ce qu'on sait de lui
+  • Qui : [nom], ce qu'on sait de lui
   • Ce qui en fait un lead : [la citation qui le prouve]
   • Le message à envoyer, mot pour mot [3 lignes max, qui repart de SA phrase et propose
     une seule chose : un créneau]

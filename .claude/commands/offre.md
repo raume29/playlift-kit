@@ -9,7 +9,7 @@ fois, sinon il répond à la première et bâcle les autres :
 
 1. Qu'est-ce que tu vends aujourd'hui, concrètement, et à quel prix ?
 2. Qui achète : métier, taille, chiffre d'affaires approximatif ?
-3. Qu'est-ce que tes 3 meilleurs clients ont **obtenu** — chiffres, délais ? Pas ce que tu
+3. Qu'est-ce que tes 3 meilleurs clients ont **obtenu** : chiffres, délais ? Pas ce que tu
    leur as livré : ce qui a changé dans leur business.
 4. Combien vaut ce résultat pour eux, en euros, sur 12 mois ?
 5. Que faisaient-ils à la place avant toi, et qu'est-ce que ça leur coûtait ?
@@ -32,7 +32,7 @@ méthode, pas un « accompagnement ».]
 
 TROIS VERSIONS DE L'OFFRE
 Pour chacune : le nom, le résultat promis, ce qui est inclus (5 lignes max), ce qui est
-EXCLU exprès, la durée, le prix, et pourquoi ce prix est justifié par le résultat —
+EXCLU exprès, la durée, le prix, et pourquoi ce prix est justifié par le résultat,
 jamais par le volume de travail.
   1. La prudente
   2. La juste

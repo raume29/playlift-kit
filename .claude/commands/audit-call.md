@@ -3,7 +3,7 @@ Analyse un appel de vente et dis à l'utilisateur où il a perdu la vente.
 ## Le transcript
 
 S'il a donné un nom de fichier après la commande, prends celui-là. Sinon, liste les fichiers
-de `transcripts/` et demande-lui lequel analyser — s'il n'y en a qu'un, prends-le sans
+de `transcripts/` et demande-lui lequel analyser ; s'il n'y en a qu'un, prends-le sans
 demander. Si le dossier est vide, dis-lui d'y déposer l'export de son outil de visio
 (`.txt` ou `.md`) et arrête-toi là.
 
@@ -22,31 +22,31 @@ savoir où elle a perdu la vente, pas des encouragements.
 - Ne félicite pas pour être poli. Tu ne cherches pas à faire plaisir.
 - Tutoie.
 
-## La grille — 9 étapes
+## La grille · 9 étapes
 
-1. **Brise-glace** — assez de confiance créée pour qu'il dise la vérité ?
-2. **Cadre / agenda** — le déroulé annoncé **et** le fait qu'on déciderait à la fin ? Sans
+1. **Brise-glace** : assez de confiance créée pour qu'il dise la vérité ?
+2. **Cadre / agenda** : le déroulé annoncé **et** le fait qu'on déciderait à la fin ? Sans
    ça, la fin de l'appel n'a pas de porte de sortie.
-3. **Pré-qualification** — budget, décideur, urgence vérifiés avant de dépenser 40 minutes ?
-4. **Vision / peine** — le prospect a parlé de sa situation, ou le vendeur a parlé à sa place ?
-5. **Challenge** — il a osé contredire ce que le prospect croyait, ou il a acquiescé ?
-6. **Validation** — l'enjeu reformulé **par le prospect** avant le pitch ?
-7. **Pitch** — un résultat vendu, ou une liste de livrables et de fonctionnalités ?
-8. **Prix** — annoncé franchement, sans s'excuser, sans le noyer, sans remise spontanée ?
+3. **Pré-qualification** : budget, décideur, urgence vérifiés avant de dépenser 40 minutes ?
+4. **Vision / peine** : le prospect a parlé de sa situation, ou le vendeur a parlé à sa place ?
+5. **Challenge** : il a osé contredire ce que le prospect croyait, ou il a acquiescé ?
+6. **Validation** : l'enjeu reformulé **par le prospect** avant le pitch ?
+7. **Pitch** : un résultat vendu, ou une liste de livrables et de fonctionnalités ?
+8. **Prix** : annoncé franchement, sans s'excuser, sans le noyer, sans remise spontanée ?
    Silence gardé après l'annonce ?
-9. **Objections** — objection isolée avant d'y répondre ? « Je vais réfléchir » traité comme
+9. **Objections** : objection isolée avant d'y répondre ? « Je vais réfléchir » traité comme
    une vraie objection, ou laissé partir ?
 
 ## Le format de sortie
 
 ```
-RÉSULTAT : [closé / acompte / R2 fixé / perdu] — NOTE GLOBALE : X/10
+RÉSULTAT : [closé / acompte / R2 fixé / perdu], NOTE GLOBALE : X/10
 
 CE QUI ÉTAIT FORT
 [3 points max, chacun avec sa citation]
 
 PAR ÉTAPE
-[une ligne par étape : « Étape — X/10 : remarque courte + citation »]
+[une ligne par étape : « Étape, X/10 : remarque courte + citation »]
 
 LES 2 MOMENTS OÙ TU AS PERDU LA VENTE
 [les deux instants précis. Pour chacun : la citation, ce que ça a déclenché chez le
@@ -61,4 +61,4 @@ TES 3 CORRECTIFS POUR LE PROCHAIN APPEL
 ```
 
 Termine par une seule ligne : s'il a d'autres appels perdus dans `transcripts/`, propose-lui
-`/objections` — ce qui revient trois fois n'est pas un mauvais jour, c'est sa fuite.
+`/objections`, ce qui revient trois fois n'est pas un mauvais jour, c'est sa fuite.

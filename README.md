@@ -5,19 +5,19 @@
 > 0€ fixe, 100% à la performance. En savoir plus : [playlift.ai/a-propos](https://playlift.ai/a-propos/).
 
 Les outils de vente que j'utilise, en libre accès. Ils tournent chez toi, sur tes vrais
-calls, avec **Claude Code** — pas de compte à créer, pas de données envoyées quelque part.
+calls, avec **Claude Code** : pas de compte à créer, pas de données envoyées quelque part.
 
 > Pour qui : tu vends une offre high-ticket et tu fais tes appels de vente toi-même.
-> Si tu n'as jamais enregistré un call, commence par là — la moitié de ces outils s'en nourrit.
+> Si tu n'as jamais enregistré un call, commence par là : la moitié de ces outils s'en nourrit.
 
 ---
 
 ## Installation (3 minutes, une fois)
 
-**1. Installe Claude Code** — c'est l'assistant d'Anthropic qui tourne dans ton terminal.
+**1. Installe Claude Code** : c'est l'assistant d'Anthropic qui tourne dans ton terminal.
 
 ```bash
-npm install -g @anthropic-ai/claude-code
+curl -fsSL https://claude.ai/install.sh | bash
 ```
 
 **2. Clone ce dépôt et entre dedans**
@@ -33,7 +33,7 @@ cd playlift-kit
 claude
 ```
 
-Tape `/` : les commandes du kit apparaissent dans la liste. C'est tout — il n'y a rien à
+Tape `/` : les commandes du kit apparaissent dans la liste. C'est tout : il n'y a rien à
 configurer, aucune clé API à fournir, ton abonnement Claude suffit.
 
 ---
@@ -42,7 +42,7 @@ configurer, aucune clé API à fournir, ton abonnement Claude suffit.
 
 ### Ceux qui tournent dans Claude Code
 
-Dépose tes transcripts d'appels dans `transcripts/` (fichiers `.txt` ou `.md` — tous les
+Dépose tes transcripts d'appels dans `transcripts/` (fichiers `.txt` ou `.md`, tous les
 outils de visio savent les exporter), puis :
 
 | Commande | Ce qu'elle fait |
@@ -72,7 +72,7 @@ outils de visio savent les exporter), puis :
 
 Ils corrigent ta façon de vendre. Ils ne changent pas le fait que **c'est toi qui vends** :
 tant que chaque euro passe par ton agenda, ton agenda est ton plafond. Aucun script, aucun
-prompt et aucun agent ne règle ça — il faut quelqu'un d'autre au bout du téléphone.
+prompt et aucun agent ne règle ça : il faut quelqu'un d'autre au bout du téléphone.
 
 C'est mon métier : je construis l'offre high-ticket de mes clients et l'équipe de vente qui
 va avec, puis je pilote le closing et l'acquisition. 0 € fixe, uniquement à la commission
@@ -90,7 +90,7 @@ dépôt n'a aucun serveur, aucune base de données et aucune télémétrie. Le d
 
 **Je n'ai pas d'abonnement Claude.**
 Les commandes marchent aussi en copiant leur contenu dans [claude.ai](https://claude.ai)
-gratuitement — ouvre le fichier `.claude/commands/<nom>.md`, colle-le, ajoute ton transcript.
+gratuitement : ouvre le fichier `.claude/commands/<nom>.md`, colle-le, ajoute ton transcript.
 Tu perds l'accès automatique à tes fichiers, rien d'autre.
 
 **Je peux modifier les prompts ?**
@@ -103,7 +103,7 @@ défaut, l'enregistrement audio suffit, la plupart des outils le transcrivent.
 
 ---
 
-Romain Barre — [playlift.ai](https://playlift.ai) · Scale Partner. 9 ans de vente
+Romain Barre · [playlift.ai](https://playlift.ai) · Scale Partner. 9 ans de vente
 high-ticket en ligne, +10 M€ vendus, 65 % de taux de close.
 
 Licence MIT : prends, modifie, revends si ça t'amuse.
