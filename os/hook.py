@@ -24,11 +24,19 @@ def entetes():
     return h
 
 
-def envoyer(cible, forcer=False):
+def envoyer(cible, forcer=False, lien=None):
     if not forcer and any(x in cible for x in IGNORER):
         return
+    # VITRINE_DISCRET : un livrable déposé par le hook ne relance pas l'OS fermée et ne la ramène pas au premier plan
+    env = dict(os.environ, VITRINE_DISCRET="1", **({"VITRINE_LIEN": lien} if lien else {}))     # lien à copier (URL claude.ai d'un artefact)
     subprocess.Popen([str(VOIR), cible], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-                     start_new_session=True)
+                     start_new_session=True, env=env)
+
+
+def lien_artefact(rep):
+    """L'URL claude.ai de l'artefact publié, lue dans le retour de l'outil."""
+    m = re.search(r"https://claude\.ai/(?:code/)?artifact/[\w-]+", json.dumps(rep) if not isinstance(rep, str) else rep)
+    return m.group(0) if m else None
 
 
 def ancetres():
@@ -147,7 +155,7 @@ def livrable(d):
         # un artefact publié est un livrable fini, même écrit dans le scratchpad (22/09/2026)
         f = entree.get("file_path", "")
         if entree.get("action", "publish") == "publish" and not entree.get("asset") and f and os.path.exists(f):
-            envoyer(f, forcer=True)
+            envoyer(f, forcer=True, lien=entree.get("url") or lien_artefact(d.get("tool_response")))
         return
     elif outil == "Bash":
         cmd = entree.get("command", "")

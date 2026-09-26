@@ -18,6 +18,10 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 PORT = int(os.environ.get("VITRINE_PORT", "8799"))
+TEST = PORT != 8799      # instance de test lancée par Claude : JAMAIS de fenêtre à l'écran (serveur seul, testé par Playwright), 24/09/2026
+TITRE = f"OS KADANS · TEST {PORT} · fenêtre de Claude, à ignorer" if TEST else "OS KADANS"
+BANDEAU = (f'<div style="background:#b3261e;color:#fff;font:600 12px ui-monospace,Menlo,monospace;padding:5px 12px;letter-spacing:.06em">'
+           f'INSTANCE DE TEST {PORT} · ouverte par Claude pour vérifier une modification · ce n’est pas ta OS KADANS, les pages affichées ici sont des essais</div>') if TEST else ""
 PORT_WS = PORT - 1
 ICI = Path(__file__).resolve().parent
 STATIC = ICI / "static"
@@ -31,8 +35,8 @@ TAMPON_MAX = 256 * 1024               # relecture du terminal à la (re)connexio
 
 # histo : chaque livrable porte le terminal (chat) qui l'a produit ; courants : terminal → id affiché ; actif : terminal au premier plan
 etat = {"histo": [], "courants": {}, "actif": None, "version": 0, "fenetre": None, "reprise": [], "dernier_dossier": None,
-        "moniteur_auto": True}
-VERSION_UI = "8"                      # cache-buster des fichiers static/ui.*
+        "moniteur_auto": False}
+VERSION_UI = "14"                      # cache-buster des fichiers static/ui.*
 
 # ───────────────────────── sécurité ─────────────────────────
 # Le serveur pilote des terminaux : sans garde, n'importe quel site ouvert dans un navigateur pourrait y taper (CSRF,
@@ -78,7 +82,7 @@ def charger_etat():
         etat["fenetre"] = d.get("fenetre")
         etat["reprise"] = d.get("reprise") or []
         etat["dernier_dossier"] = d.get("dernier_dossier")
-        etat["moniteur_auto"] = bool(d.get("moniteur_auto", True))
+        etat["moniteur_auto"] = bool(d.get("moniteur_auto_v2", False))     # v2 (24/09) : éteint par défaut, l'ancien réglage ne compte plus
     except Exception:
         pass
 
@@ -86,9 +90,24 @@ def charger_etat():
 def sauver_etat():
     try:
         ETAT_FICHIER.write_text(json.dumps({"fenetre": etat["fenetre"], "reprise": etat.get("reprise") or [],
-                                            "dernier_dossier": etat.get("dernier_dossier"), "moniteur_auto": etat.get("moniteur_auto", True)}))
+                                            "dernier_dossier": etat.get("dernier_dossier"), "moniteur_auto_v2": etat.get("moniteur_auto", False)}))
     except Exception:
         pass
+
+
+def copier_dans_telechargements(f):
+    """Copie un livrable dans ~/Downloads ; même contenu déjà là = même fichier, sinon « nom (2).ext »."""
+    import filecmp, shutil
+    dossier = Path.home() / "Downloads"
+    dossier.mkdir(exist_ok=True)
+    dest, n = dossier / f.name, 2
+    while dest.exists():
+        if filecmp.cmp(f, dest, shallow=False):
+            return dest
+        dest = dossier / f"{f.stem} ({n}){f.suffix}"
+        n += 1
+    shutil.copy2(f, dest)
+    return dest
 
 
 def est_url(c):
@@ -126,7 +145,7 @@ def terminal_cible(terminal):
     return ids[0] if ids else None
 
 
-def ajouter(cible, terminal=None, cadre=None):
+def ajouter(cible, terminal=None, cadre=None, lien=None):
     cible = (cible or "").strip()
     if not cible:
         return None
@@ -148,13 +167,15 @@ def ajouter(cible, terminal=None, cadre=None):
     terminal = terminal_cible(terminal)
     e = {"id": str(int(time.time() * 1000)), "cible": cible, "url": url,
          "nom": cible.replace("https://", "").replace("http://", "")[:40] if url else Path(cible).name,
-         "mtime": mtime, "cadre": bool(cadre), "terminal": terminal, "rev": 0}
+         "mtime": mtime, "cadre": bool(cadre), "terminal": terminal, "rev": 0,
+         "lien": lien if lien and est_url(lien) else None}      # lien à copier ; sinon l'URL ou le chemin du fichier
     with verrou:
         while any(x["id"] == e["id"] for x in etat["histo"]):
             e["id"] = str(int(e["id"]) + 1)
         ancien = next((x for x in etat["histo"] if x["cible"] == cible and x["terminal"] == terminal), None)
         if ancien:
             e["rev"] = ancien["rev"] + 1
+            e["lien"] = e["lien"] or ancien.get("lien")
         garde, n = [e], 0
         for x in etat["histo"]:
             if x is ancien:
@@ -304,6 +325,63 @@ def jarvis_session():
     return 200, {"client_secret": d.get("value"), "model": c["REALTIME_MODEL"]}
 
 
+# ───────────────────────── Jarvis local (jarvis_local.py : Whisper + Qwen + Kokoro, rien ne sort du Mac, gratuit) ─────────────────────────
+# Processus à part lancé au premier usage avec le python du workspace (mlx) ; il s'arrête seul après 15 min sans question.
+LOCAL = {"proc": None, "port": PORT - 4, "jeton": secrets.token_urlsafe(32)}
+verrou_local = threading.Lock()
+PY_WORKSPACE = ICI / ".venv" / "bin" / "python"
+
+
+def _appel_local(chemin, corps=None, ctype="application/json", delai=180):
+    r = urllib.request.Request(f"http://127.0.0.1:{LOCAL['port']}{chemin}", corps,
+                               {"Content-Type": ctype, "X-Jeton": LOCAL["jeton"]}, method="POST" if corps is not None else "GET")
+    return urllib.request.urlopen(r, timeout=delai).read()
+
+
+def demarrer_local():
+    with verrou_local:
+        p = LOCAL["proc"]
+        if p and p.poll() is None:
+            try:
+                _appel_local("/sante", delai=2)
+                return
+            except Exception:
+                p.kill()
+                p.wait(timeout=5)
+        env = {k: v for k, v in os.environ.items() if not k.startswith(("CLAUDE", "ANTHROPIC"))}
+        env.update(JARVIS_LOCAL_PORT=str(LOCAL["port"]), JARVIS_LOCAL_JETON=LOCAL["jeton"], VITRINE_PORT=str(PORT))
+        journal = open(ICI / "jarvis_local.log", "ab")
+        LOCAL["proc"] = subprocess.Popen([str(PY_WORKSPACE), str(ICI / "jarvis_local.py")], env=env, cwd=str(ICI),
+                                         stdout=journal, stderr=subprocess.STDOUT, stdin=subprocess.DEVNULL)
+        journal.close()
+        log("jarvis local lancé, pid", LOCAL["proc"].pid)
+        fin = time.time() + 30
+        while time.time() < fin:
+            try:
+                _appel_local("/sante", delai=1)
+                return
+            except Exception:
+                time.sleep(0.3)
+        raise RuntimeError("Jarvis local ne démarre pas (voir jarvis_local.log)")
+
+
+def jarvis_local(chemin, corps, ctype):
+    try:
+        demarrer_local()
+        return 200, _appel_local(chemin, corps, ctype)
+    except urllib.error.HTTPError as e:
+        return e.code, e.read()
+    except Exception as x:
+        log("jarvis local :", x)
+        return 502, json.dumps({"erreur": str(x)[:300]}).encode()
+
+
+def arreter_local():
+    p = LOCAL["proc"]
+    if p and p.poll() is None:
+        p.terminate()
+
+
 def app_mac(nom):
     """Trouve un .app par son nom, sinon par Spotlight (noms localisés)."""
     q = nom.lower().strip()
@@ -394,15 +472,16 @@ def taper_terminal(tid, texte):
 
 
 # ───────────────────────── page ─────────────────────────
-PAGE = r"""<!doctype html><html><head><meta charset="utf-8"><meta name="jeton" content="__JETON__"><title>OS KADANS</title>
+PAGE = r"""<!doctype html><html><head><meta charset="utf-8"><meta name="jeton" content="__JETON__"><title>__TITRE__</title>
 <link rel="stylesheet" href="/static/xterm.css"><link rel="stylesheet" href="/static/ui.css?v=__V__"><script src="/static/theme.js?v=__V__"></script>
-</head><body data-ws="__PORT_WS__">
+</head><body data-ws="__PORT_WS__">__BANDEAU__
 <div id="hud">
  <span id="logo"><span class="led"></span><span class="glow">OS</span><span style="color:var(--tx3)">·</span><span style="color:var(--ac2)" class="glow2">KADANS</span><span class="cur"></span></span>
  <span class="stat"><span class="k">chats</span><b id="s-chats">00</b></span>
  <span class="stat"><span class="k">claude</span><b id="s-ia">00</b></span>
  <span class="stat act" id="s-act"><span class="k">état</span><b id="s-act-v">REPOS</b></span>
  <span class="stat"><span class="k">charge</span><b id="s-charge">·</b></span>
+
  <span class="esp"></span>
  <span class="hb chat" onclick="nouveau()" title="Nouveau chat (⌘T)">＋ CHAT <kbd>⌘T</kbd></span>
  <span class="hb" onclick="nouvelleFenetre()" title="Nouvelle fenêtre, avec un nouveau chat dedans (⌘N)">⧉ FENÊTRE <kbd>⌘N</kbd></span>
@@ -425,13 +504,13 @@ PAGE = r"""<!doctype html><html><head><meta charset="utf-8"><meta name="jeton" c
 <div id="cote">
  <div class="tete"><span>Chats</span><span class="n" id="n-chats"></span><span class="b nv" onclick="nouveau()" title="Nouveau chat (⌘T)">＋ Nouveau</span></div>
  <div id="onglets-term"></div>
- <div id="aide"><b>⌘T</b> chat · <b>⌘N</b> fenêtre · <b>⌘W</b> fermer · <b>⌘1…9</b> · <b>⌘B</b> colonne · <b>⌘L</b> livrables · <b>⇧⌘F</b> plein écran · <b>⌘J</b> moniteur · <b>⌘↵</b> retour à la ligne<br>Glisse un onglet pour l’ordre, les bords pour les largeurs<br>Glisse un fichier ou colle une capture (⌘V) : son chemin s’écrit dans le chat</div>
+ <div id="aide"><b>⌘T</b> chat · <b>⌘N</b> fenêtre · <b>⌘W</b> fermer · <b>⌘1…9</b> · <b>⌘B</b> colonne · <b>⌘L</b> livrables · <b>⇧⌘F</b> plein écran · <b>⇧⌘E</b> renommer le chat · <b>⇧⌘D</b> télécharger · <b>⇧⌘C</b> copier le lien · <b>⇧⌘O</b> ouvrir le livrable · <b>⌘J</b> moniteur · <b>⌘↵</b> retour à la ligne<br>Glisse un onglet pour l’ordre, double clic pour le renommer, les bords pour les largeurs<br>Glisse un fichier ou colle une capture (⌘V) : son chemin s’écrit dans le chat</div>
 </div>
 <div id="sepc" title="Glisse pour élargir ou réduire la colonne"></div>
 <div id="principal">
  <div id="haut">
   <div id="barre"><span class="lib">Livrables</span><span id="onglets"></span>
-  <span class="d"><span class="b" onclick="recharger()" title="Recharger">↻</span><span class="bl" id="bplein" onclick="basculerPlein()" title="Plein écran : le livrable prend toute la fenêtre (⇧⌘F, Échap pour sortir)">⛶ Plein écran</span><span class="bl" id="pli" onclick="basculer()" title="Réduire / afficher les livrables (⌘L)">▁ Réduire</span></span></div>
+  <span class="d"><span class="b" onclick="recharger()" title="Recharger">↻</span><span class="bl" id="bouvrir" onclick="ouvrirLivrable()" title="Ouvrir le livrable dans Chrome (⇧⌘O) : la page claude.ai d'un artefact, sinon le fichier ou l'URL">↗ Ouvrir</span><span class="bl cp" id="btelecharger" onclick="telecharger()" title="Télécharger le livrable (⇧⌘D) : copie du fichier dans Téléchargements">⬇ Télécharger</span><span class="bl cp" id="bcopier" onclick="copierLien()" title="Copier le lien du livrable (⇧⌘C) : l'URL claude.ai d'un artefact, sinon l'URL ou le chemin du fichier">⧉ Copier le lien</span><span class="bl" id="bplein" onclick="basculerPlein()" title="Plein écran : le livrable prend toute la fenêtre (⇧⌘F, Échap pour sortir)">⛶ Plein écran</span><span class="bl" id="pli" onclick="basculer()" title="Réduire / afficher les livrables (⌘L)">▁ Réduire</span></span></div>
   <div id="vide">Aucun livrable dans ce chat</div>
   <iframe id="cadre" hidden></iframe>
  </div>
@@ -472,7 +551,7 @@ fx(localStorage.getItem('fx')!=='0');$('bfx').onclick=()=>fx(!document.body.clas
 setInterval(()=>{$('horloge').textContent=new Date().toTimeString().slice(0,8);},500);
 let terminaux=[], actifServeur=null, choix=localStorage.getItem('mon-choix')||'suivre', cleF='';
 function basculerAuto(){fetch('/moniteur/auto',{method:'POST',body:JSON.stringify({auto:!$('bauto').classList.contains('on')})}).catch(()=>{});}
-const noms=()=>Object.fromEntries(terminaux.map(s=>[s.id,(s.titre||('Terminal '+s.id)).replace(/^[✳✶✻✽●○◐◑◒◓⚡]\s*/,'').slice(0,18)]));
+const noms=()=>Object.fromEntries(terminaux.map(s=>[s.id,(s.nom||s.titre||('Terminal '+s.id)).replace(/^[✳✶✻✽●○◐◑◒◓⚡]\s*/,'').slice(0,18)]));
 const filtre=()=>choix==='tous'?null:choix==='suivre'?actifServeur:choix;
 const m=Moniteur($('mon-corps'),{filtre,noms,etat:(enCours)=>{$('s-act').classList.toggle('live',enCours);$('s-act-v').textContent=enCours?'TRAVAIL':'REPOS';}});
 async function etat(){
@@ -507,7 +586,7 @@ function fx(on){document.body.classList.toggle('fx',on);$('bfx').classList.toggl
 fx(localStorage.getItem('fx')!=='0');$('bfx').onclick=()=>fx(!document.body.classList.contains('fx'));
 setInterval(()=>{$('horloge').textContent=new Date().toTimeString().slice(0,8);},500);
 let actif=null;const jv=Jarvis($('jv-corps'),{terminal:()=>actif,surSilence:m=>$('bmuet').classList.toggle('on',m)});$('bmuet').classList.toggle('on',jv.muet());
-async function etat(){try{const e=await fetch('/etat').then(r=>r.json());actif=e.actif;const t=(e.terminaux||[]).find(x=>x.id===actif);$('s-cible').textContent=t?((t.titre||('Terminal '+t.id)).replace(/^[✳✶✻✽●○◐◑◒◓⚡]\s*/,'').slice(0,24)):'aucun';}catch(x){}setTimeout(etat,1500);}
+async function etat(){try{const e=await fetch('/etat').then(r=>r.json());actif=e.actif;const t=(e.terminaux||[]).find(x=>x.id===actif);$('s-cible').textContent=t?((t.nom||t.titre||('Terminal '+t.id)).replace(/^[✳✶✻✽●○◐◑◒◓⚡]\s*/,'').slice(0,24)):'aucun';}catch(x){}setTimeout(etat,1500);}
 etat();
 </script></body></html>"""
 
@@ -572,10 +651,14 @@ def noter_activite(d):
                 seq_a[0] += 1
                 e["cadre"], e["maj"] = c, seq_a[0]
         threading.Thread(target=verifier, daemon=True).start()
-    if typ == "outil" and str(e["outil"]).startswith(OUTILS_RECHERCHE) and etat.get("moniteur_auto", True) \
+    if typ == "outil" and str(e["outil"]).startswith(OUTILS_RECHERCHE) and etat.get("moniteur_auto", False) \
             and not fenetre_ouverte("moniteur") and not panneaux["visible"]:
         threading.Thread(target=ouvrir_fenetre, args=("moniteur",), daemon=True).start()
     return True
+
+
+def sauvegarde_cerveau():          # HUD du second cerveau : kit 2
+    return None
 
 
 def resume_activite():
@@ -590,6 +673,17 @@ def resume_activite():
 
 # ───────────────────────── fenêtres à part ─────────────────────────
 fenetres = {}     # "moniteur" → fenêtre unique ; "principal-<n>" → autres fenêtres
+
+
+fenetres_n = [0]  # numéro de la prochaine fenêtre ("0" = la principale)
+
+
+def fermeture_fenetre(cle, fen):
+    """Fenêtre secondaire fermée : ses chats encore ouverts rejoignent la principale, rien ne se perd."""
+    fenetres.pop(cle, None)
+    for t in list(terminaux.values()):
+        if t.get("fen") == fen:
+            t["fen"] = "0"
 
 
 def fenetre_ouverte(nom):
@@ -608,6 +702,8 @@ def ecran_principal():
 def ouvrir_fenetre(vue, terminal=None):
     """moniteur : fenêtre unique, collée à droite de l'OS (ou par-dessus son bord droit si l'écran est plein).
     principal : une nouvelle fenêtre, décalée, avec un nouveau chat dedans."""
+    if TEST:
+        return
     import webview
     try:
         if vue == "moniteur":
@@ -631,14 +727,17 @@ def ouvrir_fenetre(vue, terminal=None):
             w.events.closed += lambda *a: fenetres.__setitem__("moniteur", None)
             log("fenêtre moniteur ouverte")
         else:
+            fenetres_n[0] += 1
+            n = fenetres_n[0]
             tid = lancer_shell()
-            n = 1 + len([k for k in fenetres if k.startswith("principal")])
-            x, y, larg, haut = fenetre.x + 40 * n, fenetre.y + 40 * n, fenetre.width, fenetre.height
-            w = webview.create_window("OS KADANS", f"http://127.0.0.1:{PORT}/?terminal={tid}", x=int(x), y=int(y), width=int(larg), height=int(haut),
+            terminaux[tid]["fen"] = str(n)          # la nouvelle fenêtre n'affiche que ses propres chats
+            d = 1 + len([k for k in fenetres if k.startswith("principal")])
+            x, y, larg, haut = fenetre.x + 40 * d, fenetre.y + 40 * d, fenetre.width, fenetre.height
+            w = webview.create_window(TITRE, f"http://127.0.0.1:{PORT}/?fen={n}&terminal={tid}", x=int(x), y=int(y), width=int(larg), height=int(haut),
                                       min_size=(600, 400), text_select=True)
             cle = f"principal-{n}"
             fenetres[cle] = w
-            w.events.closed += lambda *a: fenetres.pop(cle, None)
+            w.events.closed += lambda *a: fermeture_fenetre(cle, str(n))
             log("nouvelle fenêtre, chat", tid)
     except Exception as x:
         log("ouvrir_fenetre", vue, ":", x)
@@ -725,7 +824,7 @@ class H(BaseHTTPRequestHandler):
         if chemin == "/choisir":
             return self._choisir()
         if chemin == "/":
-            return self._envoyer(200, PAGE.replace("__PORT_WS__", str(PORT_WS)).replace("__V__", VERSION_UI).replace("__JETON__", JETON), page=True)
+            return self._envoyer(200, PAGE.replace("__TITRE__", TITRE).replace("__BANDEAU__", BANDEAU).replace("__PORT_WS__", str(PORT_WS)).replace("__V__", VERSION_UI).replace("__JETON__", JETON), page=True)
         if chemin == "/moniteur":
             return self._envoyer(200, PAGE_MONITEUR.replace("__V__", VERSION_UI).replace("__JETON__", JETON), page=True)
         if chemin == "/jarvis":
@@ -756,13 +855,14 @@ class H(BaseHTTPRequestHandler):
             return self._envoyer(404, "introuvable")
         if chemin == "/etat":
             with verrou:
-                d = {"histo": [{"id": e["id"], "nom": e["nom"], "cible": e["cible"], "terminal": e["terminal"], "vue": vue_ou_rien(e)}
+                d = {"histo": [{"id": e["id"], "nom": e["nom"], "cible": e["cible"], "lien": e.get("lien") or e["cible"], "terminal": e["terminal"], "vue": vue_ou_rien(e)}
                                for e in etat["histo"]],
                      "courants": dict(etat["courants"]), "actif": etat["actif"], "version": etat["version"]}
             d["terminaux"] = liste_terminaux()
             d["activite"] = resume_activite()
             d["moniteur_fenetre"] = fenetre_ouverte("moniteur")
-            d["moniteur_auto"] = bool(etat.get("moniteur_auto", True))
+            d["moniteur_auto"] = bool(etat.get("moniteur_auto", False))
+            d["cerveau"] = sauvegarde_cerveau()
             try:
                 d["charge"] = os.getloadavg()[0]
             except OSError:
@@ -790,12 +890,30 @@ class H(BaseHTTPRequestHandler):
                             etat["courants"].pop(cle, None)
                     etat["version"] += 1
             return self._json({"ok": bool(e)})
+        if chemin == "/copier":        # presse-papiers macOS : le WebView n'a pas toujours navigator.clipboard
+            e = self._courant(q)
+            if e:
+                subprocess.run(["pbcopy"], input=(e.get("lien") or e["cible"]).encode(), timeout=3)
+            return self._json({"ok": bool(e), "lien": (e.get("lien") or e["cible"]) if e else None})
+        if chemin == "/telecharger":   # ⬇ Télécharger : copie du fichier du livrable dans ~/Downloads, sans rien ouvrir
+            e = self._courant(q)
+            f = Path(e["cible"]) if e and not est_url(e["cible"]) else None
+            if not (f and f.is_file()):
+                return self._json({"ok": False, "raison": "pas de fichier local pour ce livrable"})
+            dest = copier_dans_telechargements(f)
+            return self._json({"ok": True, "chemin": str(dest), "nom": dest.name})
         if chemin == "/recharger":
             e = self._courant(q)
             with verrou:
                 if e:
                     e["rev"] += 1
                 etat["version"] += 1
+            return self._json({"ok": bool(e)})
+        if chemin == "/ouvrir-livrable":      # ↗ Ouvrir : le lien claude.ai d'un artefact, sinon le fichier ou l'URL, dans Chrome
+            e = self._courant(q)
+            if e:
+                cible = e.get("lien") if e.get("lien") and est_url(e["lien"]) else e["cible"]
+                subprocess.Popen(["open", "-a", "Google Chrome", cible])
             return self._json({"ok": bool(e)})
         if chemin == "/ouvrir-url":
             url = (q.get("u") or [""])[0]
@@ -876,6 +994,8 @@ img{{max-width:100%;max-height:100%;object-fit:contain;box-shadow:0 0 30px #000}
             return self._json({"erreur": str(x)})
 
     def _choisir(self):
+        if TEST:
+            return self._json({"chemins": []})
         import webview
         dossier = etat.get("dernier_dossier")
         if not dossier or not Path(dossier).is_dir():
@@ -894,6 +1014,14 @@ img{{max-width:100%;max-height:100%;object-fit:contain;box-shadow:0 0 30px #000}
     def _post(self):
         n = int(self.headers.get("Content-Length") or 0)
         chemin = urllib.parse.urlparse(self.path).path
+        if chemin.startswith("/jarvis/local/") and chemin[14:] in ("tour", "prechauffer", "oublier"):
+            if n > 16000 * 4 * 60 + 4096:
+                return self._envoyer(413, "trop long", "text/plain; charset=utf-8")
+            corps = self.rfile.read(n) if n else b"{}"
+            q = urllib.parse.urlparse(self.path).query
+            code, rep_ = jarvis_local("/" + chemin[14:] + ("?" + q if q else ""), corps,
+                                      self.headers.get("Content-Type") or "application/json")
+            return self._envoyer(code, rep_, "application/json")
         if chemin == "/deposer":
             q = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
             nom = Path((q.get("nom") or ["fichier"])[0]).name or "fichier"
@@ -916,16 +1044,19 @@ img{{max-width:100%;max-height:100%;object-fit:contain;box-shadow:0 0 30px #000}
         if chemin == "/terminaux/nouveau":
             tid = lancer_shell(commande=d.get("commande"), cwd=d.get("cwd"))
             t = terminaux.get(tid)
+            if t:
+                t["fen"] = str(d.get("fen") or "0")
             return self._json({"id": tid, "cwd": abreger(t["cwd0"] if t else str(DOSSIER_DEPART))})
         if chemin == "/terminaux/actif":
             tid = str(d.get("id") or "")
             etat["actif"] = tid if tid in terminaux else None
             return self._json({"ok": True})
         if chemin == "/voir":
-            e = ajouter(d.get("cible", ""), terminal=d.get("terminal"))
+            e = ajouter(d.get("cible", ""), terminal=d.get("terminal"), lien=d.get("lien"))
             if not e:
                 return self._json({"ok": False, "erreur": "cible introuvable"})
-            threading.Thread(target=montrer_fenetre, daemon=True).start()
+            if d.get("montrer", True):
+                threading.Thread(target=montrer_fenetre, daemon=True).start()
             return self._json({"ok": True, "id": e["id"]})
         if chemin == "/session":
             return self._json({"ok": noter_session(d)})
@@ -966,6 +1097,12 @@ img{{max-width:100%;max-height:100%;object-fit:contain;box-shadow:0 0 30px #000}
             if t:
                 t["titre"] = str(d.get("titre") or "")[:80]
             return self._json({"ok": bool(t)})
+        if chemin.startswith("/terminaux/") and chemin.endswith("/nom"):   # nom choisi par l'utilisateur, prime sur le titre de session
+            t = terminaux.get(chemin.split("/")[2])
+            if t:
+                t["nom"] = " ".join(str(d.get("nom") or "").split())[:60]
+                memoriser_sessions()                                       # survit à un plantage, pas seulement à `voir redemarrer`
+            return self._json({"ok": bool(t), "nom": t.get("nom", "") if t else ""})
         if chemin == "/terminaux/ordre":
             with verrou_t:
                 ordre[:] = [str(x) for x in (d.get("ordre") or []) if str(x) in terminaux]
@@ -1266,10 +1403,10 @@ def memoriser_sessions():
             continue
         tid = next((k for k, v in list(terminaux.items()) if v is t), None)
         with verrou:
-            livrables = [{"cible": h["cible"], "cadre": h["cadre"]} for h in etat["histo"] if h["terminal"] == tid]
+            livrables = [{"cible": h["cible"], "cadre": h["cadre"], "lien": h.get("lien")} for h in etat["histo"] if h["terminal"] == tid]
             c = trouver(etat["courants"].get(tid) or "")
         reprise.append({"session": t["session"] if claude_de(t) else None,
-                        "cwd": cwd_processus(t["pid"]) or t["cwd0"],
+                        "cwd": cwd_processus(t["pid"]) or t["cwd0"], "nom": t.get("nom") or "",
                         "livrables": livrables, "courant": c["cible"] if c else None})
     etat["reprise"] = reprise
     sauver_etat()
@@ -1280,6 +1417,7 @@ def redemarrer():
     """Relance l'OS sur elle-même : les sessions Claude reprennent dans les mêmes onglets."""
     reprise = memoriser_sessions()
     log("redémarrage, reprise :", reprise)
+    arreter_local()
     for t in list(terminaux.values()):
         try:
             os.kill(t["pid"], signal.SIGHUP)
@@ -1296,7 +1434,8 @@ def liste_terminaux():
         items = list(terminaux.items())
     for tid, t in sorted(items, key=lambda kv: (pos.get(kv[0], 10 ** 9), int(kv[0]))):
         out.append({"id": tid, "cwd": abreger(cwd_processus(t["pid"]) or t["cwd0"]), "session": t["session"],
-                    "claude": bool(claude_de(t)), "titre": t.get("titre") or ""})
+                    "claude": bool(claude_de(t)), "titre": t.get("titre") or "", "nom": t.get("nom") or "",
+                    "fen": t.get("fen") or "0"})
     return out
 
 
@@ -1313,6 +1452,7 @@ def montrer_fenetre():
 
 def quitter():
     memoriser_sessions()
+    arreter_local()
     for t in list(terminaux.values()):
         try:
             os.kill(t["pid"], signal.SIGHUP)
@@ -1394,7 +1534,8 @@ def main():
         NSBundle.mainBundle().infoDictionary()["CFBundleName"] = "OS KADANS"
     except Exception:
         pass
-    autoriser_micro()
+    if not TEST:
+        autoriser_micro()
     signal.signal(signal.SIGPIPE, signal.SIG_IGN)
     charger_etat()
     f = etat["fenetre"] or {}
@@ -1416,12 +1557,14 @@ def main():
         except ValueError:
             s = None
         tid = lancer_shell(commande=f"claude --resume {s}" if s else None, cwd=r.get("cwd"), session=s)
+        if r.get("nom") and terminaux.get(tid):
+            terminaux[tid]["nom"] = str(r["nom"])[:60]
         ouverts += 1
         for l in reversed(r.get("livrables") or []):      # les livrables du chat reviennent avec lui, le plus récent en tête
             if isinstance(l, dict) and _re.match(r"https?://127\.0\.0\.1:(?!%d/)" % PORT, str(l.get("cible") or "")):
                 continue                                  # page d'une instance de test, morte au redémarrage
             if isinstance(l, dict):
-                ajouter(l.get("cible"), terminal=tid, cadre=l.get("cadre", True))
+                ajouter(l.get("cible"), terminal=tid, cadre=l.get("cadre", True), lien=l.get("lien"))
         c = next((h for h in etat["histo"] if h["terminal"] == tid and h["cible"] == r.get("courant")), None)
         if c:
             etat["courants"][tid] = c["id"]
@@ -1432,8 +1575,12 @@ def main():
         ajouter(c)
     if not attendre_port(PORT):
         log("le serveur HTTP ne répond pas sur", PORT)
+    if TEST:            # aucune fenêtre : l'utilisateur ne doit jamais voir une instance de test ; /quitter la ferme
+        log("instance de test sans fenêtre, port", PORT)
+        while True:
+            time.sleep(3600)
     fenetre = webview.create_window(
-        "OS KADANS", f"http://127.0.0.1:{PORT}/",
+        TITRE, f"http://127.0.0.1:{PORT}/",
         x=f.get("x"), y=f.get("y"), width=int(f.get("w") or 1280), height=int(f.get("h") or 860),
         min_size=(600, 400), text_select=True)
     fenetre.events.moved += lambda *a: memoriser_fenetre()

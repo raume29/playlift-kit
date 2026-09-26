@@ -31,7 +31,7 @@ case "$1" in
   terminaux)  api -m 2 "$URL/terminaux"; echo; exit 0;;
 esac
 
-vivante || lancer || exit 1
+if [ -n "$VITRINE_DISCRET" ]; then vivante || exit 0; else vivante || lancer || exit 1; fi
 
 if [ -z "$1" ]; then api -m 2 "$URL/montrer" >/dev/null; exit 0; fi
 
@@ -43,7 +43,8 @@ esac
 "$PY" - "$cible" "$URL" "$JETON_FICHIER" <<'PYEOF'
 import json, os, sys, urllib.request
 # VITRINE_TERMINAL : le chat (terminal de l'OS) d'où part la commande ; le livrable se range dans ses onglets
-d = json.dumps({"cible": sys.argv[1], "terminal": os.environ.get("VITRINE_TERMINAL")}).encode()
+d = json.dumps({"cible": sys.argv[1], "terminal": os.environ.get("VITRINE_TERMINAL"), "lien": os.environ.get("VITRINE_LIEN"),
+                "montrer": not os.environ.get("VITRINE_DISCRET")}).encode()
 try: jeton = open(sys.argv[3]).read().strip()
 except OSError: jeton = ""
 r = urllib.request.Request(sys.argv[2] + "/voir", d, {"Content-Type": "application/json", "X-Jeton": jeton})

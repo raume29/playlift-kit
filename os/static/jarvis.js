@@ -1,12 +1,17 @@
 // Jarvis : assistant vocal (OpenAI Realtime par WebRTC) branché sur OS KADANS.
 // Orbe, session, cartes, rapport. Outils côté OS KADANS :
 // send_to_terminal (écrit dans le chat Claude actif), read_terminal (lit ce que Claude affiche), open_app, open_url, display_card, display_report,
-// et en lecture seule : obsidian_search, obsidian_read, kadans, livrables, emails, todo (/jarvis/outil).
+// et les outils en lecture seule de jarvis_outils.py (/jarvis/outil).
 // Jarvis(racine, {terminal: () => id du chat actif})
 window.Jarvis = function (racine, opts) {
-  racine.innerHTML = '<div class="jv"><canvas class="orbe"></canvas><div class="etat">clique l’orbe pour <b>initialiser</b></div><div class="transcript"></div><div class="cartes"></div><div class="rapport" hidden></div></div>';
+  racine.innerHTML = '<div class="jv"><div class="jv-mode"><span class="chip" data-m="local" title="Tout sur le Mac : Whisper, Qwen, Kokoro. Gratuit, rien ne sort.">● Local</span><span class="chip" data-m="openai" title="OpenAI Realtime : plus rapide et plus naturel, payant, les données partent chez OpenAI">OpenAI</span></div><canvas class="orbe"></canvas><div class="etat">clique l’orbe pour <b>initialiser</b></div><div class="transcript"></div><form class="jv-ecrire"><input placeholder="ou écris ta question (Entrée)" autocomplete="off"></form><div class="cartes"></div><div class="rapport" hidden></div></div>';
   const orb = racine.querySelector('.orbe'), ctx = orb.getContext('2d'), etatEl = racine.querySelector('.etat'), trEl = racine.querySelector('.transcript'), cartes = racine.querySelector('.cartes'), rapport = racine.querySelector('.rapport');
   let pc = null, dc = null, mic = null, anIn = null, anOut = null, actif = false, t = 0, audioEl = null, muet = localStorage.getItem('jarvis-muet') === '1';
+  let mode = 'local'; try { mode = localStorage.getItem('jarvis-mode') || 'local'; } catch (x) { }
+  const loc = { ac: null, proc: null, phase: 'arret', morceaux: [], parle: false, silence: 0, voixMs: 0, bruit: 0.004, calib: 0, audio: null };
+  function rendreMode() { racine.querySelectorAll('.jv-mode .chip').forEach(c => c.classList.toggle('on', c.dataset.m === mode)); racine.querySelector('.jv-ecrire').hidden = mode !== 'local'; }
+  racine.querySelectorAll('.jv-mode .chip').forEach(c => c.onclick = () => { if (c.dataset.m === mode) return; arreter(); mode = c.dataset.m; try { localStorage.setItem('jarvis-mode', mode); } catch (x) { } rendreMode(); });
+  rendreMode();
   const esc = s => String(s ?? '').replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
   const css = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
   const rgb = hex => { const h = hex.replace('#', ''); const n = parseInt(h.length === 3 ? h.split('').map(c => c + c).join('') : h, 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255].join(','); };
@@ -39,8 +44,73 @@ window.Jarvis = function (racine, opts) {
   }
   dessiner();
 
+  // ── mode local : micro → détection de fin de phrase → /jarvis/local/tour (Whisper + Qwen + Kokoro sur le Mac) → voix
+  async function demarrerLocal() {
+    etatEl.innerHTML = '<b>chargement des modèles…</b> (première fois : ~15 s)';
+    try {
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) throw new Error('micro indisponible dans cette fenêtre : ouvre /jarvis dans Chrome');
+      mic = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } });
+      const ac = new AudioContext(); loc.ac = ac; anIn = ac.createAnalyser(); anIn.fftSize = 256;
+      const src = ac.createMediaStreamSource(mic); src.connect(anIn);
+      const proc = ac.createScriptProcessor(4096, 1, 1); loc.proc = proc; src.connect(proc); proc.connect(ac.destination);
+      proc.onaudioprocess = ev => ecouter(ev.inputBuffer.getChannelData(0), ac.sampleRate);
+      actif = true; racine.classList.add('actif');
+      const r = await fetch('/jarvis/local/prechauffer', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
+      if (!r.ok) throw new Error((await r.json().catch(() => ({}))).erreur || ('HTTP ' + r.status));
+      if (actif) ecoute();
+    } catch (x) { etatEl.innerHTML = '<b class="err">erreur</b> · ' + esc((x.name ? x.name + ' : ' : '') + x.message) + (x.name === 'NotAllowedError' ? ' · Réglages Système › Confidentialité › Microphone' : ''); arreter(true); }
+  }
+  function ecoute() { loc.phase = 'ecoute'; loc.morceaux = []; loc.parle = false; loc.silence = 0; loc.voixMs = 0; loc.calib = 0; etatEl.innerHTML = '<b>j’écoute</b> · local, rien ne sort du Mac'; }
+  function ecouter(buf, sr) {
+    if (loc.phase !== 'ecoute') return;
+    let e = 0; for (let i = 0; i < buf.length; i++) e += buf[i] * buf[i]; const rms = Math.sqrt(e / buf.length), ms = buf.length / sr * 1000;
+    if (loc.calib < 300) { loc.calib += ms; loc.bruit = Math.max(0.003, loc.bruit * 0.7 + rms * 0.3); return; }     // bruit de fond
+    const seuil = Math.max(0.012, loc.bruit * 3);
+    const f = new Float32Array(buf); loc.morceaux.push({ f, sr });
+    if (rms > seuil) { loc.voixMs += ms; loc.silence = 0; if (loc.voixMs > 150) loc.parle = true; }
+    else { loc.silence += ms; if (!loc.parle) { loc.bruit = loc.bruit * 0.95 + rms * 0.05; if (loc.morceaux.length > 4) loc.morceaux.shift(); } }
+    const duree = loc.morceaux.length * ms;
+    if (loc.parle && (loc.silence > 900 || duree > 25000)) envoyerTour();
+  }
+  function en16k(morceaux) {
+    const sr = morceaux[0].sr, n = morceaux.reduce((a, m) => a + m.f.length, 0), tout = new Float32Array(n); let o = 0;
+    for (const m of morceaux) { tout.set(m.f, o); o += m.f.length; }
+    const r = sr / 16000, out = new Float32Array(Math.floor(n / r));
+    for (let i = 0; i < out.length; i++) { const x = i * r, a = Math.floor(x), b = Math.min(a + 1, n - 1); out[i] = tout[a] + (tout[b] - tout[a]) * (x - a); }
+    return out;
+  }
+  async function envoyerTour(texte) {
+    const corps = texte != null ? JSON.stringify({ texte }) : en16k(loc.morceaux).buffer;
+    loc.phase = 'reflexion'; etatEl.innerHTML = '<b>réflexion…</b>'; trEl.textContent = '';
+    try {
+      const term = opts.terminal ? opts.terminal() : '';
+      const r = await fetch('/jarvis/local/tour?terminal=' + encodeURIComponent(term || ''), { method: 'POST', headers: { 'Content-Type': texte != null ? 'application/json' : 'application/octet-stream' }, body: corps });
+      const d = await r.json(); if (!r.ok) throw new Error(d.erreur || ('HTTP ' + r.status));
+      if (!d.vous) { if (actif) ecoute(); else etatEl.innerHTML = 'clique l’orbe pour <b>initialiser</b>'; return; }
+      carte('Vous', d.vous, 'info'); (d.cartes || []).forEach(c => carte(c.titre, c.contenu, 'result'));
+      trEl.textContent = d.reponse; if (muet || !d.audio) carte('Jarvis', d.reponse, 'result');
+      if (d.audio && !muet) await jouer(d.audio);
+    } catch (x) { carte('Erreur', String(x.message || x), 'warning'); }
+    if (actif) ecoute(); else etatEl.innerHTML = 'clique l’orbe pour <b>initialiser</b>';
+  }
+  function jouer(b64) {
+    return new Promise(ok => {
+      loc.phase = 'parle'; etatEl.innerHTML = '<b>jarvis parle</b> · clique l’orbe pour couper';
+      const a = new Audio('data:audio/wav;base64,' + b64); loc.audio = a;
+      try { const ac = loc.ac || new AudioContext(); loc.ac = ac; anOut = ac.createAnalyser(); anOut.fftSize = 256; const s = ac.createMediaElementSource(a); s.connect(anOut); anOut.connect(ac.destination); } catch (x) { }
+      a.onended = a.onerror = a.onpause = () => { loc.audio = null; anOut = null; ok(); };
+      a.play().catch(() => ok());
+    });
+  }
+  racine.querySelector('.jv-ecrire').addEventListener('submit', ev => {
+    ev.preventDefault(); const i = ev.target.querySelector('input'), v = i.value.trim(); if (!v || loc.phase === 'reflexion') return;
+    i.value = ''; if (loc.audio) loc.audio.pause(); envoyerTour(v);
+  });
+
   async function demarrer() {
+    if (mode === 'local' && loc.audio) { loc.audio.pause(); return; }      // clic pendant qu'il parle : on coupe la voix seulement
     if (actif) return arreter();
+    if (mode === 'local') return demarrerLocal();
     etatEl.innerHTML = '<b>connexion…</b>';
     try {
       const sess = await fetch('/jarvis/session', { method: 'POST' }).then(async r => { const d = await r.json(); if (!r.ok) throw new Error(d.erreur || r.status); return d; });
@@ -58,13 +128,14 @@ window.Jarvis = function (racine, opts) {
     } catch (x) { etatEl.innerHTML = '<b class="err">erreur</b> · ' + esc((x.name ? x.name + ' : ' : '') + x.message) + (x.name === 'NotAllowedError' ? ' · vérifie Réglages Système › Confidentialité › Microphone › OS KADANS, ou bouton Chrome' : ''); arreter(true); }
   }
   function arreter(silencieux) {
+    if (loc.proc) { try { loc.proc.disconnect(); } catch (x) { } loc.proc = null; } if (loc.audio) loc.audio.pause(); loc.phase = 'arret';
     if (pc) pc.close(); pc = null; dc = null; if (mic) mic.getTracks().forEach(tr => tr.stop()); mic = null; anIn = anOut = null; actif = false; racine.classList.remove('actif');
     if (!silencieux) etatEl.innerHTML = 'clique l’orbe pour <b>initialiser</b>';
   }
-  function afficherEtat() { if (actif) etatEl.innerHTML = muet ? '<b>en ligne</b> · silencieux, réponses écrites' : '<b>en ligne</b> · à votre service'; }
+  function afficherEtat() { if (actif && mode === 'local') return; if (actif) etatEl.innerHTML = muet ? '<b>en ligne</b> · silencieux, réponses écrites' : '<b>en ligne</b> · à votre service'; }
   // silence : plus de voix, Jarvis répond par écrit (transcript et cartes) ; « reste silencieux » / « reparle » à la voix, ou le bouton Muet
   function silence(on) {
-    muet = !!on; localStorage.setItem('jarvis-muet', muet ? '1' : '0'); if (audioEl) audioEl.muted = muet;
+    muet = !!on; localStorage.setItem('jarvis-muet', muet ? '1' : '0'); if (audioEl) audioEl.muted = muet; if (muet && loc.audio) loc.audio.pause();
     envoyer({ type: 'session.update', session: { type: 'realtime', output_modalities: [muet ? 'text' : 'audio'] } });
     afficherEtat(); if (opts.surSilence) opts.surSilence(muet);
   }

@@ -7,3 +7,5 @@ jarvis.env
 __pycache__/
 .jeton-*
 .app-chemin
+modeles/
+jarvis_local.log

@@ -58,7 +58,7 @@ async function etat(){
 function rendre(e){
   serveur=e;histo=e.histo||[];courants=e.courants||{};
   if(vus===null)vus=new Set(histo.map(h=>h.id));
-  rendreTerms(e.terminaux);      // fixe `actif` avant de filtrer les livrables
+  rendreTerms((e.terminaux||[]).filter(t=>(t.fen||'0')===FEN));      // fixe `actif` avant de filtrer les livrables
   rendreLivrables();
   rendreHud(e);
 }
@@ -66,6 +66,7 @@ function rendreHud(e){
   const n=(e.terminaux||[]).length, ia=(e.terminaux||[]).filter(t=>t.claude).length;
   $('s-chats').textContent=String(n).padStart(2,'0');$('s-ia').textContent=String(ia).padStart(2,'0');
   $('s-charge').textContent=(e.charge!=null?e.charge.toFixed(2):'·');
+  majCerveau(e.cerveau);
   const a=e.activite||{};const st=$('s-act');st.classList.toggle('live',!!a.en_cours);
   $('s-act-v').textContent=a.en_cours?'TRAVAIL':'REPOS';
   $('bfen').classList.toggle('on2',!!e.moniteur_fenetre);
@@ -76,7 +77,7 @@ function affiche(){
   const id=courants[actif];return histo.find(h=>h.id===id&&h.terminal===actif)||null;
 }
 function titreTerm(tid){const t=terms[tid];const s=listeServeur.find(x=>x.id===tid);
-  if(!s)return 'chat fermé';return ((t&&t.titre)||s.titre||('Terminal '+tid)).replace(/^[✳✶✻✽●○◐◑◒◓⚡]\s*/,'').slice(0,18);}
+  if(!s)return 'chat fermé';return (s.nom||(t&&t.titre)||s.titre||('Terminal '+tid)).replace(/^[✳✶✻✽●○◐◑◒◓⚡]\s*/,'').slice(0,18);}
 function rendreLivrables(){
   const liste=histo.filter(h=>h.terminal===actif);
   const a=affiche();
@@ -89,6 +90,7 @@ function rendreLivrables(){
       const x=document.createElement('span');x.className='fx';x.textContent='✕';x.title='Fermer ce livrable';
       x.onclick=ev=>{ev.stopPropagation();fermerLivrable(h.id);};s.appendChild(x);
       s.onclick=()=>{courants[actif]=h.id;fetch('/aller/'+h.id);rendreLivrables();};ong.appendChild(s);}}
+  $('bcopier').hidden=!a;$('bouvrir').hidden=!a;$('btelecharger').hidden=!(a&&!/^https?:/.test(a.cible||''));if(a)$('bcopier').dataset.lien=a.lien||'';
   const vue=a&&a.vue||'';
   if(vue!==srcCadre){srcCadre=vue;const c=$('cadre'),v=$('vide');
     if(vue){c.hidden=false;v.hidden=true;c.src=vue;}else{c.hidden=true;v.hidden=false;c.src='about:blank';}}
@@ -100,6 +102,15 @@ function fermerLivrable(id){histo=histo.filter(h=>h.id!==id);for(const k in cour
   rendreLivrables();fetch('/fermer-livrable/'+id).catch(()=>{});}
 // un lien cliqué dans le chat s'affiche dans les livrables de ce chat, jamais dans un navigateur à part
 function voirIci(u,t){fetch('/voir',{method:'POST',body:JSON.stringify({cible:u,terminal:t&&t.id})}).then(()=>{deplier();etat();}).catch(()=>{});}
+function ouvrirLivrable(){const a=affiche();if(a)fetch('/ouvrir-livrable?id='+a.id).catch(()=>{});}
+// copier le lien du livrable affiché (par le serveur : pbcopy), confirmation sur le bouton
+function copierLien(){const a=affiche(),b=$('bcopier');if(!a)return;
+  fetch('/copier?id='+a.id).then(r=>r.json()).then(d=>{if(!d.ok)return;b.classList.add('on');b.textContent='✓ Copié';b.title=d.lien;
+    clearTimeout(b._t);b._t=setTimeout(()=>{b.classList.remove('on');b.textContent='⧉ Copier le lien';},1600);}).catch(()=>{});}
+// télécharger le livrable affiché : le serveur le copie dans ~/Downloads, confirmation sur le bouton
+function telecharger(){const a=affiche(),b=$('btelecharger');if(!a)return;
+  fetch('/telecharger?id='+a.id).then(r=>r.json()).then(d=>{b.classList.add('on');b.textContent=d.ok?'✓ Dans Téléchargements':'✕ Pas de fichier';b.title=d.ok?d.chemin:(d.raison||'');
+    clearTimeout(b._t);b._t=setTimeout(()=>{b.classList.remove('on');b.textContent='⬇ Télécharger';b.title='Télécharger le livrable (⇧⌘D) : copie du fichier dans Téléchargements';},2200);}).catch(()=>{});}
 function recharger(){const a=affiche();fetch('/recharger'+(a?'?id='+a.id:''));if(a&&/^https?:/.test(a.vue||''))$('cadre').src=a.vue;}
 function plier(silencieux){sortirPlein();$('haut').classList.add('plie');$('sep').hidden=true;$('pli').textContent='▴ Afficher';localStorage.setItem('plie','1');if(!silencieux)ajuster();}
 function deplier(){if(!$('haut').classList.contains('plie'))return;$('haut').classList.remove('plie');$('sep').hidden=false;$('pli').textContent='▁ Réduire';localStorage.setItem('plie','0');ajuster();}
@@ -171,7 +182,7 @@ function activer(id){
   if(vus)rendreLivrables();
   if(moniteur)moniteur.suivre();
 }
-let listeServeur=[], cleTerms='', creation=false, glisseTerm=null, ordreLocal=0, premier=PARAMS.get('terminal');
+let listeServeur=[], cleTerms='', creation=false, glisseTerm=null, ordreLocal=0, premier=PARAMS.get('terminal'), FEN=PARAMS.get('fen')||'0';   // chaque fenêtre ne montre que ses chats
 function rendreTerms(liste){
   if(liste){const maintenant=Date.now();for(const [k,d] of fermes)if(maintenant-d>5000)fermes.delete(k);
     liste=liste.filter(s=>!fermes.has(s.id));
@@ -183,19 +194,40 @@ function rendreTerms(liste){
   if(liste&&!listeServeur.length&&!creation)nouveau();   // plus aucun terminal (exit partout) : on en rouvre un
   const act=(serveur.activite&&serveur.activite.par_terminal)||{};
   const lignes=listeServeur.map((s,i)=>{const t=terms[s.id];
-    return {id:s.id,num:String(i+1).padStart(2,'0'),titre:((t&&t.titre)||s.titre||('Terminal '+s.id)).replace(/^[✳✶✻✽●○◐◑◒◓⚡]\s*/,''),sous:(t&&!t.vivant)?'fermé':s.cwd,on:s.id===actif,
+    return {id:s.id,num:String(i+1).padStart(2,'0'),titre:(s.nom||(t&&t.titre)||s.titre||('Terminal '+s.id)).replace(/^[✳✶✻✽●○◐◑◒◓⚡]\s*/,''),nomme:!!s.nom,sous:(t&&!t.vivant)?'fermé':s.cwd,on:s.id===actif,
       ia:s.claude?(act[s.id]?'trav':'on'):'',
       nouveau:!!vus&&s.id!==actif&&histo.some(h=>h.terminal===s.id&&!vus.has(h.id))};});
-  const cle=JSON.stringify(lignes);if(cle===cleTerms)return;cleTerms=cle;
+  const cle=JSON.stringify(lignes);if(cle===cleTerms||renomme)return;cleTerms=cle;
   const ong=$('onglets-term');ong.innerHTML='';
   for(const l of lignes){const d=document.createElement('div');d.className='t'+(l.on?' on':'')+(l.nouveau?' nouveau':'');
-    d.innerHTML='<span class="pt" title="Nouveau livrable dans ce chat"></span><span class="titre"><span class="num"></span><span class="ia"></span><span class="tx"></span></span><span class="sous"></span><span class="x" title="Fermer">✕</span>';
+    d.innerHTML='<span class="pt" title="Nouveau livrable dans ce chat"></span><span class="titre"><span class="num"></span><span class="ia"></span><span class="tx"></span></span><span class="sous"></span><span class="ed" title="Renommer (double clic)">✎</span><span class="x" title="Fermer">✕</span>';
     d.querySelector('.num').textContent=l.num;d.querySelector('.tx').textContent=l.titre;d.querySelector('.sous').textContent=l.sous;
     const ia=d.querySelector('.ia');ia.className='ia '+l.ia;ia.title=l.ia==='trav'?'Claude travaille':l.ia==='on'?'Claude en attente':'shell';
     d.onclick=()=>{if(!aGlisse)activer(l.id);};d.querySelector('.x').onclick=ev=>{ev.stopPropagation();fermer(l.id);};
+    d.querySelector('.ed').onclick=ev=>{ev.stopPropagation();renommer(l.id);};d.ondblclick=ev=>{ev.preventDefault();renommer(l.id);};
+    if(l.nomme)d.querySelector('.tx').title='Nom choisi · vide = titre automatique';
     d.dataset.id=l.id;
-    d.onmousedown=ev=>{if(ev.button!==0||ev.target.classList.contains('x'))return;aGlisse=false;presse={id:l.id,x:ev.clientX,y:ev.clientY,el:d};};
+    d.onmousedown=ev=>{if(ev.button!==0||ev.target.classList.contains('x')||ev.target.classList.contains('ed')||ev.target.tagName==='INPUT')return;aGlisse=false;presse={id:l.id,x:ev.clientX,y:ev.clientY,el:d};};
     ong.appendChild(d);}
+}
+// ── renommer un chat : double clic ou ✎, Entrée garde, Échap annule, vide = titre automatique ──
+let renomme=null, finirRenommage=null;
+document.addEventListener('mousedown',ev=>{if(renomme&&!(ev.target.classList&&ev.target.classList.contains('ren'))&&finirRenommage)finirRenommage();},true);   // xterm garde le focus au clic : on valide nous-mêmes
+function renommer(id){
+  const d=document.querySelector('#onglets-term .t[data-id="'+id+'"]');const s=listeServeur.find(x=>x.id===id);if(!d||!s||renomme)return;
+  renomme=id;presse=null;d.classList.add('renomme');
+  const tx=d.querySelector('.tx');const i=document.createElement('input');i.className='ren';i.maxLength=60;
+  const avant=s.nom||tx.textContent;i.value=avant;i.placeholder='titre automatique';tx.replaceWith(i);
+  let fini=false;const t0=Date.now();
+  const viser=()=>{if(!fini){i.focus();i.select();}};viser();
+  const finir=garder=>{if(fini)return;fini=true;renomme=null;
+    const v=i.value.replace(/\s+/g,' ').trim();
+    if(garder&&v!==avant){s.nom=v;
+      fetch('/terminaux/'+id+'/nom',{method:'POST',body:JSON.stringify({nom:v})}).catch(()=>{});}
+    cleTerms='';rendreTerms();const t=terms[actif];if(t)t.term.focus();};
+  finirRenommage=()=>finir(true);
+  i.onkeydown=ev=>{ev.stopPropagation();if(ev.key==='Enter'){ev.preventDefault();finir(true);}else if(ev.key==='Escape'){ev.preventDefault();finir(false);}};
+  i.onblur=()=>{if(Date.now()-t0<300)return setTimeout(viser,0);finir(true);};   // activer() rend le focus au terminal juste après le double clici.onclick=ev=>ev.stopPropagation();i.onmousedown=ev=>ev.stopPropagation();i.ondblclick=ev=>ev.stopPropagation();
 }
 // ── ordre des onglets : on presse, on bouge de 5 px, on lâche où on veut (souris, comme dans Warp) ──
 let presse=null;
@@ -229,7 +261,7 @@ function deplacer(src,cible,avant){
 }
 async function nouveau(){
   if(creation)return;creation=true;
-  try{const r=await fetch('/terminaux/nouveau',{method:'POST'});const d=await r.json();
+  try{const r=await fetch('/terminaux/nouveau',{method:'POST',body:JSON.stringify({fen:FEN})});const d=await r.json();
     if(!listeServeur.find(s=>s.id===d.id))listeServeur.push(d);rendreTerms();activer(d.id);}
   catch(x){}finally{creation=false;}
 }
@@ -270,7 +302,11 @@ document.addEventListener('keydown',e=>{
   else if(k==='n'){nouvelleFenetre();e.preventDefault();}
   else if(k==='w'){if(actif)fermer(actif);e.preventDefault();}
   else if(k==='b'){const c=$('cote');c.hidden=!c.hidden;$('sepc').hidden=c.hidden;ajuster();e.preventDefault();}
+  else if(k==='c'&&e.shiftKey){copierLien();e.preventDefault();}
+  else if(k==='d'&&e.shiftKey){telecharger();e.preventDefault();}
+  else if(k==='o'&&e.shiftKey){ouvrirLivrable();e.preventDefault();}
   else if(k==='f'&&e.shiftKey){basculerPlein();e.preventDefault();}
+  else if(k==='e'&&e.shiftKey){if(actif){const c=$('cote');if(c.hidden){c.hidden=false;$('sepc').hidden=false;ajuster();}renommer(actif);}e.preventDefault();}
   else if(k==='l'){if(e.shiftKey){const a=affiche();if(a)fermerLivrable(a.id);}else basculer();e.preventDefault();}
   else if(k==='j'){if(e.shiftKey)fenetreMoniteur();else montrerMoniteur(mon.hidden,true);e.preventDefault();}
   else if(k==='v'&&e.shiftKey){basculerJarvis();e.preventDefault();}
@@ -302,3 +338,5 @@ document.addEventListener('paste',e=>{
   items.forEach(i=>deposer(i.getAsFile()));
 },true);
 etat();
+
+function majCerveau(c){}
