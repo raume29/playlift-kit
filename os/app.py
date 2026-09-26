@@ -36,7 +36,7 @@ TAMPON_MAX = 256 * 1024               # relecture du terminal à la (re)connexio
 # histo : chaque livrable porte le terminal (chat) qui l'a produit ; courants : terminal → id affiché ; actif : terminal au premier plan
 etat = {"histo": [], "courants": {}, "actif": None, "version": 0, "fenetre": None, "reprise": [], "dernier_dossier": None,
         "moniteur_auto": False}
-VERSION_UI = "14"                      # cache-buster des fichiers static/ui.*
+VERSION_UI = "17"                      # cache-buster des fichiers static/ui.*
 
 # ───────────────────────── sécurité ─────────────────────────
 # Le serveur pilote des terminaux : sans garde, n'importe quel site ouvert dans un navigateur pourrait y taper (CSRF,
@@ -149,6 +149,13 @@ def ajouter(cible, terminal=None, cadre=None, lien=None):
     cible = (cible or "").strip()
     if not cible:
         return None
+    if re.match(r"https://claude\.ai/(?:code/)?artifact/", cible):
+        # claude.ai ne s'affiche pas dans le cadre (connexion) : un lien d'artefact cliqué
+        # rouvre son fichier local quand on l'a déjà (26/09/2026)
+        with verrou:
+            local = next((x["cible"] for x in etat["histo"] if x.get("lien") == cible and not x["url"]), None)
+        if local and os.path.isfile(local):
+            cible, lien = local, cible
     if not est_url(cible):
         p = Path(cible).expanduser()
         if not p.is_absolute():
@@ -484,6 +491,7 @@ PAGE = r"""<!doctype html><html><head><meta charset="utf-8"><meta name="jeton" c
 
  <span class="esp"></span>
  <span class="hb chat" onclick="nouveau()" title="Nouveau chat (⌘T)">＋ CHAT <kbd>⌘T</kbd></span>
+
  <span class="hb" onclick="nouvelleFenetre()" title="Nouvelle fenêtre, avec un nouveau chat dedans (⌘N)">⧉ FENÊTRE <kbd>⌘N</kbd></span>
  <span class="hb" id="bmon" onclick="montrerMoniteur($('moniteur').hidden,true)" title="Moniteur : ce que fait Claude, en panneau (⌘J)">◫ MONITEUR <kbd>⌘J</kbd></span>
  <span class="hb" id="bfen" onclick="fenetreMoniteur()" title="Moniteur dans une fenêtre à part, à droite (⇧⌘J)">⇥ À DROITE <kbd>⇧⌘J</kbd></span>
@@ -499,6 +507,7 @@ PAGE = r"""<!doctype html><html><head><meta charset="utf-8"><meta name="jeton" c
  <div><div class="l">Thème couleur</div><div class="grp" id="themes"></div></div>
  <div><div class="l">Police</div><div class="grp" id="polices"></div></div>
  <div><div class="l">Taille du terminal<span class="r" id="tailles"></span></div></div>
+ <div><div class="l">Fond animé (focus)<span class="r" id="bambiance"></span></div></div>
 </div>
 <div id="corps">
 <div id="cote">
@@ -510,8 +519,8 @@ PAGE = r"""<!doctype html><html><head><meta charset="utf-8"><meta name="jeton" c
 <div id="principal">
  <div id="haut">
   <div id="barre"><span class="lib">Livrables</span><span id="onglets"></span>
-  <span class="d"><span class="b" onclick="recharger()" title="Recharger">↻</span><span class="bl" id="bouvrir" onclick="ouvrirLivrable()" title="Ouvrir le livrable dans Chrome (⇧⌘O) : la page claude.ai d'un artefact, sinon le fichier ou l'URL">↗ Ouvrir</span><span class="bl cp" id="btelecharger" onclick="telecharger()" title="Télécharger le livrable (⇧⌘D) : copie du fichier dans Téléchargements">⬇ Télécharger</span><span class="bl cp" id="bcopier" onclick="copierLien()" title="Copier le lien du livrable (⇧⌘C) : l'URL claude.ai d'un artefact, sinon l'URL ou le chemin du fichier">⧉ Copier le lien</span><span class="bl" id="bplein" onclick="basculerPlein()" title="Plein écran : le livrable prend toute la fenêtre (⇧⌘F, Échap pour sortir)">⛶ Plein écran</span><span class="bl" id="pli" onclick="basculer()" title="Réduire / afficher les livrables (⌘L)">▁ Réduire</span></span></div>
-  <div id="vide">Aucun livrable dans ce chat</div>
+  <span class="d"><span class="b" onclick="recharger()" title="Recharger">↻</span><span class="bl" id="bouvrir" onclick="ouvrirLivrable()" title="Ouvrir le livrable dans Chrome (⇧⌘O) : la page claude.ai d'un artefact, sinon le fichier ou l'URL">↗ Ouvrir</span><span class="bl cp" id="btelecharger" onclick="telecharger()" title="Télécharger le livrable (⇧⌘D) : copie du fichier dans Téléchargements">⬇ Télécharger</span><span class="bl cp" id="bcopier" onclick="copierLien()" title="Copier le lien du livrable (⇧⌘C) : l'URL claude.ai d'un artefact, sinon l'URL ou le chemin du fichier">⧉ Copier le lien</span><span class="bl" id="bplein" onclick="basculerPlein()" title="Plein écran : le livrable prend toute la fenêtre (⇧⌘F, Échap pour sortir)">⛶ Plein écran</span><span class="bl" id="pli" onclick="basculer()" title="Réduire / afficher les livrables (⌘L)">▁ Réduire</span><span class="bl ferme" id="bfermer" onclick="fermerAffiche()" title="Fermer ce livrable (⇧⌘L)" hidden>✕ Fermer</span></span></div>
+  <div id="vide"><span id="vide-txt">Aucun livrable dans ce chat</span></div>
   <iframe id="cadre" hidden></iframe>
  </div>
  <div id="sep"></div>
@@ -526,7 +535,7 @@ PAGE = r"""<!doctype html><html><head><meta charset="utf-8"><meta name="jeton" c
 </div>
 </div>
 <script src="/static/xterm.js"></script><script src="/static/addon-fit.js"></script><script src="/static/addon-web-links.js"></script>
-<script src="/static/moniteur.js?v=__V__"></script><script src="/static/jarvis.js?v=__V__"></script><script src="/static/ui.js?v=__V__"></script>
+<script src="/static/moniteur.js?v=__V__"></script><script src="/static/jarvis.js?v=__V__"></script><script src="/static/ui.js?v=__V__"></script><script src="/static/ambiance.js?v=__V__"></script>
 </body></html>"""
 
 PAGE_MONITEUR = r"""<!doctype html><html><head><meta charset="utf-8"><meta name="jeton" content="__JETON__"><title>Moniteur</title>
@@ -659,6 +668,9 @@ def noter_activite(d):
 
 def sauvegarde_cerveau():          # HUD du second cerveau : kit 2
     return None
+
+
+sauvegarde_manuelle = {}
 
 
 def resume_activite():
@@ -862,7 +874,7 @@ class H(BaseHTTPRequestHandler):
             d["activite"] = resume_activite()
             d["moniteur_fenetre"] = fenetre_ouverte("moniteur")
             d["moniteur_auto"] = bool(etat.get("moniteur_auto", False))
-            d["cerveau"] = sauvegarde_cerveau()
+            d["cerveau"] = dict(sauvegarde_cerveau() or {}, manuel=dict(sauvegarde_manuelle))
             try:
                 d["charge"] = os.getloadavg()[0]
             except OSError:

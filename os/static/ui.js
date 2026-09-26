@@ -33,6 +33,7 @@ function rendreReglages(){
   for(const m of r.querySelectorAll('[data-mode]')){m.classList.toggle('on',m.dataset.mode===reg.mode);m.onclick=()=>{reg.mode=m.dataset.mode;appliquerReglages();};}
   const th=$('themes');th.innerHTML='';for(const [id,nom,c1,c2] of THEMES){const e=document.createElement('span');e.className='th'+(reg.theme===id?' on':'');e.innerHTML='<span class="p" style="background:'+c1+'"></span><span class="p2" style="background:'+c2+'"></span>'+nom;e.onclick=()=>{reg.theme=id;appliquerReglages();};th.appendChild(e);}
   const po=$('polices');po.innerHTML='';for(const [nom,pile] of POLICES){const e=document.createElement('span');e.className='th police'+(reg.police===pile?' on':'');e.textContent=nom;e.style.fontFamily=pile;e.onclick=()=>{reg.police=pile;appliquerReglages();};po.appendChild(e);}
+  const am=$('bambiance');if(am&&window.ambiance){am.innerHTML='';for(const [v,n] of [[true,'on'],[false,'off']]){const e=document.createElement('span');e.className='th'+(window.ambiance()===v?' on':'');e.textContent=n;e.onclick=()=>{window.ambiance(v);rendreReglages();};am.appendChild(e);}}
   const ta=$('tailles');ta.innerHTML='';for(const n of TAILLES){const e=document.createElement('span');e.className='th'+(reg.taille===n?' on':'');e.textContent=n;e.onclick=()=>{reg.taille=n;appliquerReglages();};ta.appendChild(e);}
 }
 function basculerMode(){reg.mode=reg.mode==='light'?'dark':'light';appliquerReglages();}
@@ -86,15 +87,15 @@ function rendreLivrables(){
   const cle=JSON.stringify([liste.map(h=>[h.id,h.nom]),a&&a.id]);
   if(cle!==cleLivr){cleLivr=cle;const ong=$('onglets');ong.innerHTML='';
     for(const h of liste){const s=document.createElement('span');s.className='o'+(a&&h.id===a.id?' on':'');
-      s.appendChild(document.createTextNode(h.nom));s.title=h.cible;
+      const nm=document.createElement('span');nm.className='nm';nm.textContent=h.nom;s.appendChild(nm);s.title=h.cible;
       const x=document.createElement('span');x.className='fx';x.textContent='✕';x.title='Fermer ce livrable';
       x.onclick=ev=>{ev.stopPropagation();fermerLivrable(h.id);};s.appendChild(x);
       s.onclick=()=>{courants[actif]=h.id;fetch('/aller/'+h.id);rendreLivrables();};ong.appendChild(s);}}
-  $('bcopier').hidden=!a;$('bouvrir').hidden=!a;$('btelecharger').hidden=!(a&&!/^https?:/.test(a.cible||''));if(a)$('bcopier').dataset.lien=a.lien||'';
+  $('bcopier').hidden=!a;$('bouvrir').hidden=!a;$('bfermer').hidden=!a;$('btelecharger').hidden=!(a&&!/^https?:/.test(a.cible||''));if(a)$('bcopier').dataset.lien=a.lien||'';
   const vue=a&&a.vue||'';
   if(vue!==srcCadre){srcCadre=vue;const c=$('cadre'),v=$('vide');
     if(vue){c.hidden=false;v.hidden=true;c.src=vue;}else{c.hidden=true;v.hidden=false;c.src='about:blank';}}
-  $('vide').textContent=liste.length?'Choisis un livrable dans la barre':'Aucun livrable dans ce chat';
+  $('vide-txt').textContent=liste.length?'Choisis un livrable dans la barre':'Aucun livrable dans ce chat';
   if(nouveau&&vue)deplier();      // un livrable neuf dans le chat actif rouvre le volet
   if(nouveau)rendreTerms();
 }
@@ -102,6 +103,8 @@ function fermerLivrable(id){histo=histo.filter(h=>h.id!==id);for(const k in cour
   rendreLivrables();fetch('/fermer-livrable/'+id).catch(()=>{});}
 // un lien cliqué dans le chat s'affiche dans les livrables de ce chat, jamais dans un navigateur à part
 function voirIci(u,t){fetch('/voir',{method:'POST',body:JSON.stringify({cible:u,terminal:t&&t.id})}).then(()=>{deplier();etat();}).catch(()=>{});}
+// ✕ Fermer : quitte la visualisation du livrable affiché (sort aussi du plein écran)
+function fermerAffiche(){const a=affiche();if(!a)return;sortirPlein();fermerLivrable(a.id);}
 function ouvrirLivrable(){const a=affiche();if(a)fetch('/ouvrir-livrable?id='+a.id).catch(()=>{});}
 // copier le lien du livrable affiché (par le serveur : pbcopy), confirmation sur le bouton
 function copierLien(){const a=affiche(),b=$('bcopier');if(!a)return;

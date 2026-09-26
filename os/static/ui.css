@@ -247,3 +247,17 @@ body.plein #haut{flex:1;height:auto!important}
 .bl.cp{border-color:var(--ac);color:var(--ac);background:var(--acf)}
 .bl.cp:hover,.bl.cp.on{background:var(--ac);color:var(--bg)}
 .bl[hidden]{display:none}
+/* fond animé de focus (ambiance.js) : canvas sous la zone vide, note discrète en bas à gauche */
+#vide{position:relative;overflow:hidden}
+#ambiance{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+#vide-txt{position:absolute;left:12px;bottom:8px;font-size:9.5px;letter-spacing:.14em;color:var(--tx3);opacity:.55;z-index:1}
+/* barre des livrables : les onglets rétrécissent et défilent dans leur zone, jamais par dessus les boutons */
+#barre{overflow:hidden}
+#onglets{flex:1 1 0;min-width:0;overflow-x:auto;overflow-y:hidden;scrollbar-width:none}
+#onglets::-webkit-scrollbar{display:none}
+.o{flex:0 1 auto;min-width:90px;display:inline-flex;align-items:center}
+.o .nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.o .fx{flex:none}.o.on .fx{display:inline}
+.d{position:relative;z-index:1;background:var(--pan);padding-left:4px}
+.bl.ferme{border-color:var(--rg);color:var(--rg);background:transparent}
+.bl.ferme:hover{background:var(--rg);color:var(--bg)}
