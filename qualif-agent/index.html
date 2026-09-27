@@ -4,30 +4,41 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Avant de réserver</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,500;14..32,700;14..32,800&display=swap" rel="stylesheet">
 <style>
-  :root { --paper:#F3F3F0; --ink:#111114; --soft:#57574F; --accent:#FF4A1C;
-          --surface:#fff; --hair:#DEDDD5; }
-  @media (prefers-color-scheme: dark) {
-    :root { --paper:#111113; --ink:#F4F3EF; --soft:#A6A69D; --accent:#FF5A2E;
-            --surface:#191A1D; --hair:#2A2B2F; }
-  }
-  * { box-sizing: border-box; }
-  body { margin:0; background:var(--paper); color:var(--ink); padding:0 20px 64px;
-         font:17px/1.6 -apple-system,"SF Pro Display","Segoe UI",Roboto,sans-serif; }
-  main { max-width:620px; margin:0 auto; }
-  h1 { font-size:clamp(26px,5vw,36px); line-height:1.15; margin:44px 0 8px; }
-  p.chapeau { color:var(--soft); margin:0 0 28px; }
-  label { display:block; margin:22px 0 6px; font-weight:600; }
-  .aide { font-weight:400; color:var(--soft); font-size:15px; }
+  /* DA métro Playlift : mur carrelé, frise verte, le formulaire est une affiche papier */
+  :root { --orange:#FF4A1C; --noir:#111114; --jaune:#FF9A1F; --blanc:#F3F3F0; --frise:#1F5C4A;
+          --carreau:#ECEBE6; --joint:#D6D4CC; --gris:#5B5B57;
+          --sans:"Inter",-apple-system,"SF Pro Display",Arial,sans-serif; }
+  * { box-sizing:border-box; }
+  body { margin:0; color:var(--noir); padding:0 16px 64px;
+         font:17px/1.55 var(--sans); -webkit-font-smoothing:antialiased;
+         background-color:var(--carreau);
+         background-image:linear-gradient(var(--joint) 2px,transparent 2px),linear-gradient(90deg,var(--joint) 2px,transparent 2px);
+         background-size:96px 48px; }
+  body::before { content:""; display:block; height:34px; margin:0 -16px 44px; background:var(--frise);
+         background-image:repeating-linear-gradient(45deg,rgba(243,243,240,.22) 0 3px,transparent 3px 17px),repeating-linear-gradient(-45deg,rgba(243,243,240,.22) 0 3px,transparent 3px 17px);
+         border-bottom:4px solid #173F33; }
+  main { max-width:660px; margin:0 auto; background:var(--blanc); padding:44px 48px 48px;
+         border:14px solid #D8D8D4; outline:2px solid #BDBDB8;
+         box-shadow:inset 0 10px 18px rgba(0,0,0,.14),0 22px 40px rgba(0,0,0,.28); }
+  h1 { font-size:clamp(30px,6vw,46px); font-weight:800; letter-spacing:-.035em; line-height:1.04; margin:0 0 14px; }
+  p.chapeau { font-size:19px; font-weight:600; line-height:1.4; margin:0 0 26px; padding-bottom:22px; border-bottom:3px solid var(--noir); }
+  label { display:block; margin:24px 0 8px; font-weight:800; font-size:18px; letter-spacing:-.015em; }
+  .aide { display:block; font-weight:500; color:var(--gris); font-size:15px; letter-spacing:0; margin-top:2px; }
   input, textarea, select {
-    width:100%; padding:13px 14px; border:1px solid var(--hair); border-radius:11px;
-    background:var(--surface); color:inherit; font:inherit; }
+    width:100%; margin-top:8px; padding:13px 14px; border:2px solid var(--noir); border-radius:0;
+    background:#fff; color:inherit; font:500 16px/1.4 var(--sans); }
+  input:focus, textarea:focus, select:focus { outline:3px solid var(--orange); outline-offset:0; }
   textarea { min-height:96px; resize:vertical; }
-  button { margin-top:28px; width:100%; padding:15px; border:0; border-radius:999px;
-           background:var(--accent); color:#141414; font:600 17px/1 inherit; cursor:pointer; }
+  button { margin-top:32px; width:100%; padding:18px; border:0; border-radius:0;
+           background:var(--orange); color:var(--noir); font:800 19px/1 var(--sans); letter-spacing:-.01em; cursor:pointer; }
+  button:hover { background:var(--noir); color:var(--orange); }
   button[disabled] { opacity:.55; cursor:default; }
   #fin { display:none; }
-  #fin a { color:var(--accent); }
+  #fin a { color:var(--noir); font-weight:800; text-decoration:none; border-bottom:3px solid var(--orange); }
+  @media (max-width:640px) { main { padding:26px 20px 30px; border-width:8px; } body::before { margin-bottom:28px; } }
 </style>
 </head>
 <body>
