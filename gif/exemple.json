@@ -1,0 +1,16 @@
+{
+  "marque": "Ton nom",
+  "etiquette": "La méthode",
+  "titre": "Ton infographie qui bouge. [[Sans vidéo.]]",
+  "etapes": [
+    ["Écris le parcours", "Une étape, une phrase."],
+    ["Donne ta charte", "Couleurs, police, un seul surlignage."],
+    ["Demande la page", "Claude Code la code en HTML, 1080 × 1350."],
+    ["Anime une chose", "Un point qui suit le tracé. Rien d'autre."],
+    ["Filme la page", "Playwright, 15 images par seconde."],
+    ["Sors le GIF", "ffmpeg, puis poste-le comme une photo."]
+  ],
+  "pied": "Ton nom · ton-site.com",
+  "charte": {"fond": "#111114", "texte": "#F3F3F0", "accent": "#FF4A1C", "police": "Inter"},
+  "duree": 8
+}

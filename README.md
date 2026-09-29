@@ -56,6 +56,7 @@ outils de visio savent les exporter), puis :
 | `/tri` | Trie tes messages entrants (DM, commentaires) et sort les leads chauds, classés |
 | `/plafond` | Calcule ce que ton agenda te coûte chaque mois, en euros, à partir de tes chiffres |
 | `/posts` | Écrit avec toi ton **post lead magnet** en 9 blocs : objectif, 10 accroches notées, corps bloc par bloc, audit valeur, crible mobile, texte de l'image, message d'envoi, relance J+3 et calendrier de la semaine |
+| `/gif` | Fabrique ton **infographie animée** pour LinkedIn : un point parcourt tes étapes, elles s'allument une à une. Sort un GIF qui boucle, à poster comme une photo (moteur `gif/gif.py`, dépendances : Playwright et ffmpeg) |
 
 ### Ceux que tu déploies
 
