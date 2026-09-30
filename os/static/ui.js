@@ -160,7 +160,8 @@ function creerVue(id){
   // ⌘↵ ou ⇧↵ : retour à la ligne dans le chat Claude (séquence Meta+Entrée, comprise sans /terminal-setup)
   term.attachCustomKeyEventHandler(e=>{
     if(e.type==='keydown'&&e.key==='Enter'&&(e.metaKey||e.shiftKey)){envoyer(t,enc.encode('\x1b\r'));return false;}
-    if(e.metaKey&&['k','t','w','b','l','j','n','1','2','3','4','5','6','7','8','9'].includes(e.key.toLowerCase()))return false;  // raccourcis OS KADANS
+    if(e.metaKey&&e.altKey&&(e.key==='ArrowUp'||e.key==='ArrowDown'))return false;
+    if(e.metaKey&&['k','t','w','b','l','j','n','g','p','a','1','2','3','4','5','6','7','8','9'].includes(e.key.toLowerCase()))return false;  // raccourcis OS KADANS
     if(e.metaKey&&e.shiftKey&&e.key.toLowerCase()==='v')return false;
     return true;
   });
@@ -179,40 +180,120 @@ function ajusterUn(t,toutDeSuite){
 function ajuster(){if(actif&&terms[actif])ajusterUn(terms[actif]);}
 function activer(id){
   if(!terms[id])return;actif=id;
+  const sv=listeServeur.find(x=>x.id===id);if(sv){vuChats[cleVu(sv)]=Date.now()/1000;sauverVus();}
   for(const k in terms)terms[k].div.hidden=(k!==id);
-  ouvrirVue(terms[id]);requestAnimationFrame(()=>{ajusterUn(terms[id],true);terms[id].term.focus();});rendreTerms();localStorage.setItem('actif',id);
+  ouvrirVue(terms[id]);requestAnimationFrame(()=>{const t=terms[id];if(!t)return;ajusterUn(t,true);t.term.focus();});rendreTerms();localStorage.setItem('actif',id);
   fetch('/terminaux/actif',{method:'POST',body:JSON.stringify({id})}).catch(()=>{});   // un `voir` venu d'ailleurs se range dans ce chat
   if(vus)rendreLivrables();
   if(moniteur)moniteur.suivre();
 }
 let listeServeur=[], cleTerms='', creation=false, glisseTerm=null, ordreLocal=0, premier=PARAMS.get('terminal'), FEN=PARAMS.get('fen')||'0';   // chaque fenêtre ne montre que ses chats
 function rendreTerms(liste){
+  const posActif=listeServeur.findIndex(s=>s.id===actif);let perdu=-1;
   if(liste){const maintenant=Date.now();for(const [k,d] of fermes)if(maintenant-d>5000)fermes.delete(k);
     liste=liste.filter(s=>!fermes.has(s.id));
+    for(const s of liste){const g=groupesLocaux[s.id];if(g&&maintenant-g.t<3000)s.groupe=g.g;}   // une catégorie posée à l'instant prime le temps que le serveur suive
     if(Date.now()-ordreLocal<3000){const pos={};listeServeur.forEach((s,i)=>pos[s.id]=i);liste.sort((a,b)=>(pos[a.id]??1e9)-(pos[b.id]??1e9));}   // un déplacement local prime le temps que le serveur suive
     listeServeur=liste;}
+  listeServeur=regrouper(listeServeur);
   for(const s of listeServeur)if(!terms[s.id])creerVue(s.id);
-  for(const k in terms)if(!listeServeur.find(s=>s.id===k)){const t=terms[k];delete terms[k];try{if(t.ws){t.ws.onclose=null;t.ws.close();}t.term.dispose();}catch(x){}t.div.remove();if(actif===k)actif=null;}
+  for(const k in terms)if(!listeServeur.find(s=>s.id===k)){const t=terms[k];delete terms[k];try{if(t.ws){t.ws.onclose=null;t.ws.close();}t.term.dispose();}catch(x){}t.div.remove();if(actif===k){actif=null;perdu=posActif;}}
+  if(!actif&&perdu>=0&&listeServeur.length){activer(listeServeur[Math.min(perdu,listeServeur.length-1)].id);return;}   // chat fermé par `exit` : on passe au suivant
   if(!actif&&listeServeur.length){const m=premier||localStorage.getItem('actif');premier=null;activer(m in terms?m:listeServeur[0].id);}
   if(liste&&!listeServeur.length&&!creation)nouveau();   // plus aucun terminal (exit partout) : on en rouvre un
-  const act=(serveur.activite&&serveur.activite.par_terminal)||{};
-  const lignes=listeServeur.map((s,i)=>{const t=terms[s.id];
-    return {id:s.id,num:String(i+1).padStart(2,'0'),titre:(s.nom||(t&&t.titre)||s.titre||('Terminal '+s.id)).replace(/^[✳✶✻✽●○◐◑◒◓⚡]\s*/,''),nomme:!!s.nom,sous:(t&&!t.vivant)?'fermé':s.cwd,on:s.id===actif,
-      ia:s.claude?(act[s.id]?'trav':'on'):'',
-      nouveau:!!vus&&s.id!==actif&&histo.some(h=>h.terminal===s.id&&!vus.has(h.id))};});
-  const cle=JSON.stringify(lignes);if(cle===cleTerms||renomme)return;cleTerms=cle;
+  const act=(serveur.activite&&serveur.activite.par_terminal)||{}, fini=(serveur.activite&&serveur.activite.fini)||{};
+  const maint=Date.now()/1000;let vusModif=false;
+  const lignes=listeServeur.map((s,i)=>{const t=terms[s.id],cv=cleVu(s),f=fini[s.id]||0;
+    if(vuChats[cv]==null||(s.id===actif&&f>vuChats[cv])){vuChats[cv]=Math.max(maint,f);vusModif=true;}   // le chat affiché est lu ; un chat vu pour la première fois part lu
+    const trav=s.claude&&act[s.id]?act[s.id]:null, pret=!!(s.claude&&!trav&&f&&f>vuChats[cv]);
+    return {id:s.id,num:String(i+1).padStart(2,'0'),titre:titreComplet(s),nomme:!!s.nom,g:s.groupe||'',sous:sousLigne(s,t,trav,pret,f),on:s.id===actif,
+      ia:s.claude?(trav?'trav':pret?'pret':'on'):'',trav:!!trav,pret,
+      nouveau:!!vus&&s.id!==actif&&histo.some(h=>h.terminal===s.id&&!vus.has(h.id))};});   // la sous-ligne change chaque minute : le chrono suit
+  if(vusModif)sauverVus();
+  dernieresLignes=lignes;
+  const nt=lignes.filter(l=>l.trav).length,bt=$('n-trav');bt.hidden=!nt;bt.textContent='⚡ '+nt;bt.title=nt+(nt>1?' chats où Claude travaille':' chat où Claude travaille');
+  const np=lignes.filter(l=>l.pret).length,bp=$('n-pret');bp.hidden=!np;bp.textContent='✓ '+np;bp.title=np+(np>1?' réponses prêtes, pas encore lues':' réponse prête, pas encore lue')+' · clic ou ⇧⌘A : y aller';
+  const q=normer($('cherche').value);
+  const vis=q?lignes.filter(l=>normer(l.titre+' '+l.g+' '+l.sous).includes(q)):lignes;
+  const cle=JSON.stringify([lignes,[...plies],q]);if(cle===cleTerms||renomme)return;cleTerms=cle;
   const ong=$('onglets-term');ong.innerHTML='';
-  for(const l of lignes){const d=document.createElement('div');d.className='t'+(l.on?' on':'')+(l.nouveau?' nouveau':'');
-    d.innerHTML='<span class="pt" title="Nouveau livrable dans ce chat"></span><span class="titre"><span class="num"></span><span class="ia"></span><span class="tx"></span></span><span class="sous"></span><span class="ed" title="Renommer (double clic)">✎</span><span class="x" title="Fermer">✕</span>';
-    d.querySelector('.num').textContent=l.num;d.querySelector('.tx').textContent=l.titre;d.querySelector('.sous').textContent=l.sous;
-    const ia=d.querySelector('.ia');ia.className='ia '+l.ia;ia.title=l.ia==='trav'?'Claude travaille':l.ia==='on'?'Claude en attente':'shell';
+  const stats={};for(const l of lignes){const st=stats[l.g]||(stats[l.g]={n:0,trav:0,pret:0,nouveau:false});st.n++;if(l.trav)st.trav++;if(l.pret)st.pret++;if(l.nouveau)st.nouveau=true;}
+  if(q&&!vis.length){const v=document.createElement('div');v.className='rien';v.textContent='Aucun chat pour « '+$('cherche').value.trim()+' »';ong.appendChild(v);}
+  let gc='';
+  for(const l of vis){
+    if(l.g&&l.g!==gc){const st=stats[l.g],pl=plies.has(l.g)&&!q;
+      const h=document.createElement('div');h.className='g'+(pl?' plie':'')+(pl&&st.trav?' trav':'')+(pl&&st.pret?' pret':'')+(pl&&st.nouveau?' nouveau':'');h.dataset.g=l.g;
+      h.innerHTML='<span class="fl"></span><span class="gn"></span><span class="gc"></span><span class="gt"></span>';
+      h.querySelector('.fl').textContent=pl?'▸':'▾';h.querySelector('.gn').textContent=l.g;h.querySelector('.gc').textContent=st.n;
+      h.querySelector('.gt').textContent=(st.trav?'⚡ '+st.trav+' ':'')+(pl&&st.pret?'✓ '+st.pret:'');h.title='Clic : replier / déplier · double clic : renommer la catégorie · glisse un chat dessus pour l’y ranger';
+      h.onclick=()=>{if(aGlisse)return;if(pl)plies.delete(l.g);else plies.add(l.g);sauverPlies();rendreTerms();};
+      h.ondblclick=ev=>{ev.preventDefault();renommerGroupe(l.g);};
+      ong.appendChild(h);}
+    gc=l.g;
+    if(l.g&&plies.has(l.g)&&!l.on&&!q)continue;          // catégorie repliée : seul le chat actif reste visible (sauf pendant une recherche)
+    const d=document.createElement('div');d.className='t'+(l.on?' on':'')+(l.nouveau?' nouveau':'')+(l.trav?' trav':'')+(l.pret?' pret':'');
+    d.innerHTML='<span class="pt" title="Nouveau livrable dans ce chat"></span><span class="titre"><span class="num"></span><span class="ia"></span><span class="tx"></span></span><span class="sous"></span><span class="mu" title="Actions : renommer, catégorie, fermer (clic droit)">⋯</span><span class="x" title="Fermer (⌘W, clic molette)">✕</span>';
+    d.querySelector('.num').textContent=l.num;d.querySelector('.tx').textContent=l.titre;d.querySelector('.sous').textContent=l.sous;d.title=l.titre;
+    const ia=d.querySelector('.ia');ia.className='ia '+l.ia;ia.title=l.ia==='trav'?'Claude travaille':l.ia==='pret'?'Réponse prête, pas encore lue':l.ia==='on'?'Claude en attente':'shell';
     d.onclick=()=>{if(!aGlisse)activer(l.id);};d.querySelector('.x').onclick=ev=>{ev.stopPropagation();fermer(l.id);};
-    d.querySelector('.ed').onclick=ev=>{ev.stopPropagation();renommer(l.id);};d.ondblclick=ev=>{ev.preventDefault();renommer(l.id);};
+    d.querySelector('.mu').onclick=ev=>{ev.stopPropagation();const r=ev.target.getBoundingClientRect();menuChat(l.id,r.left,r.bottom+2);};
+    d.oncontextmenu=ev=>{ev.preventDefault();menuChat(l.id,ev.clientX,ev.clientY);};
+    d.onauxclick=ev=>{if(ev.button===1){ev.preventDefault();ev.stopPropagation();fermer(l.id);}};
+    if(l.g)d.classList.add('dans-g');d.ondblclick=ev=>{ev.preventDefault();renommer(l.id);};
     if(l.nomme)d.querySelector('.tx').title='Nom choisi · vide = titre automatique';
-    d.dataset.id=l.id;
-    d.onmousedown=ev=>{if(ev.button!==0||ev.target.classList.contains('x')||ev.target.classList.contains('ed')||ev.target.tagName==='INPUT')return;aGlisse=false;presse={id:l.id,x:ev.clientX,y:ev.clientY,el:d};};
+    d.dataset.id=l.id;if(q&&l===vis[0])d.classList.add('premier');   // Entrée ouvre celui-ci
+    d.onmousedown=ev=>{if(ev.button===1)ev.preventDefault();if(ev.button!==0||ev.target.classList.contains('x')||ev.target.classList.contains('mu')||ev.target.tagName==='INPUT')return;aGlisse=false;presse={id:l.id,x:ev.clientX,y:ev.clientY,el:d};};
     ong.appendChild(d);}
 }
+function ilya(t){const m=Math.floor((Date.now()/1000-t)/60);return m<1?"à l'instant":m<60?'il y a '+m+' min':m<1440?'il y a '+Math.floor(m/60)+' h':'il y a '+Math.floor(m/1440)+' j';}
+function titreComplet(s){const t=terms[s.id];return (s.nom||(t&&t.titre)||s.titre||('Terminal '+s.id)).replace(/^[✳✶✻✽●○◐◑◒◓⚡]\s*/,'');}
+// sous-ligne : ce que fait le chat (au travail, réponse prête, au repos depuis…) ; le dossier seulement s'il n'est pas le workspace
+function sousLigne(s,t,trav,pret,f){
+  if(t&&!t.vivant)return 'fermé';
+  const dos=s.cwd&&serveur.cwd_defaut&&s.cwd!==serveur.cwd_defaut?s.cwd.split('/').pop():'';
+  const e=trav?'⚡ travaille · '+dureeTrav(trav.depuis)+(trav.outil?' · '+String(trav.outil).replace(/^mcp__[^_]+(__)?/,''):'')
+    :pret?'✓ réponse prête · '+ilya(f):s.claude?(f?'répondu '+ilya(f):'en attente'):'shell';
+  return dos&&!trav?'▸ '+dos+' · '+e:e;}
+function normer(x){return String(x||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim();}
+// « réponse prête » : Claude a fini (Stop) après la dernière fois où le chat était à l'écran ; clé = session Claude, qui survit à un redémarrage
+let vuChats={};try{vuChats=JSON.parse(localStorage.getItem('vuchats')||'{}')||{};}catch(x){}
+function cleVu(s){return s.session||('t'+s.id);}
+function sauverVus(){vuChats=Object.fromEntries(Object.entries(vuChats).sort((a,b)=>b[1]-a[1]).slice(0,300));try{localStorage.setItem('vuchats',JSON.stringify(vuChats));}catch(x){}}
+let dernieresLignes=[];
+function allerPret(){const ids=listeServeur.map(s=>s.id),i=Math.max(0,ids.indexOf(actif)),n=ids.length;
+  const p=dernieresLignes.filter(l=>l.pret).map(l=>l.id).sort((a,b)=>((ids.indexOf(a)-i+n)%n)-((ids.indexOf(b)-i+n)%n));if(p.length)activer(p[0]);}
+// ⌥⌘↑ / ⌥⌘↓ : chat précédent / suivant dans la colonne telle qu'elle s'affiche
+function voisinChat(sens){const ids=[...document.querySelectorAll('#onglets-term .t')].map(d=>d.dataset.id);if(!ids.length)return;
+  let i=ids.indexOf(actif);i=i<0?0:(i+sens+ids.length)%ids.length;activer(ids[i]);
+  const d=document.querySelector('#onglets-term .t[data-id="'+ids[i]+'"]');if(d)d.scrollIntoView({block:'nearest'});}
+// recherche : filtre titre, catégorie, état ; Entrée ouvre le premier, Échap vide
+const cherche=$('cherche');
+cherche.oninput=()=>{cleTerms='';rendreTerms();};
+cherche.onkeydown=ev=>{ev.stopPropagation();
+  if(ev.key==='Escape'){ev.preventDefault();cherche.value='';cleTerms='';rendreTerms();const t=terms[actif];if(t)t.term.focus();}
+  else if(ev.key==='Enter'){ev.preventDefault();const d=document.querySelector('#onglets-term .t');if(d){cherche.value='';cleTerms='';activer(d.dataset.id);}}
+  else if(ev.key==='ArrowDown'){ev.preventDefault();voisinChat(1);cherche.focus();}
+  else if(ev.key==='ArrowUp'){ev.preventDefault();voisinChat(-1);cherche.focus();}};
+function chercher(){const c=$('cote');if(c.hidden){c.hidden=false;$('sepc').hidden=false;ajuster();}cherche.focus();cherche.select();}
+function basculerAide(on){const a=$('aide');a.hidden=on===undefined?!a.hidden:!on;$('baide').classList.toggle('on',!a.hidden);try{localStorage.setItem('aide',a.hidden?'0':'1');}catch(x){}}
+try{if(localStorage.getItem('aide')==='1')basculerAide(true);}catch(x){}
+// chats fermés récemment : ↺ ou ⇧⌘T les rouvre avec leur session Claude, leur nom et leur catégorie
+let recents=[];try{recents=JSON.parse(localStorage.getItem('recents')||'[]')||[];}catch(x){}
+function sauverRecents(){try{localStorage.setItem('recents',JSON.stringify(recents));}catch(x){}}
+function memoriserFerme(s){if(!s||!s.claude||!s.session)return;
+  recents=[{session:s.session,cwd:s.cwd,nom:s.nom||'',titre:titreComplet(s),groupe:s.groupe||'',t:Date.now()/1000},...recents.filter(r=>r.session!==s.session)].slice(0,12);sauverRecents();}
+async function rouvrir(r){if(!r||creation)return;creation=true;
+  recents=recents.filter(x=>x.session!==r.session);sauverRecents();
+  try{const q=await fetch('/terminaux/nouveau',{method:'POST',body:JSON.stringify({fen:FEN,reprendre:r.session,cwd:r.cwd,nom:r.nom,groupe:r.groupe})});const d=await q.json();
+    if(!d.id)return;d.groupe=r.groupe;d.nom=r.nom;d.session=r.session;d.claude=true;groupesLocaux[d.id]={g:r.groupe,t:Date.now()};
+    if(!listeServeur.find(s=>s.id===d.id))listeServeur.push(d);rendreTerms();activer(d.id);}
+  catch(x){}finally{creation=false;}}
+function menuRouvrir(){const b=$('brouvrir').getBoundingClientRect();
+  ouvrirMenu(b.left,b.bottom+2,(m,ligne,tete)=>{tete('Chats fermés récemment');
+    if(!recents.length){const v=document.createElement('div');v.className='mi vide';v.textContent='Aucun';m.appendChild(v);return;}
+    for(const r of recents)ligne(r.titre.slice(0,34),'',()=>{fermerMenu();rouvrir(r);},ilya(r.t).replace('il y a ',''));
+    ligne('Vider la liste','hors',()=>{recents=[];sauverRecents();fermerMenu();});});}
+function dureeTrav(t){const m=Math.floor((Date.now()/1000-t)/60);return m<1?"à l'instant":m<60?m+' min':Math.floor(m/60)+' h '+String(m%60).padStart(2,'0');}
 // ── renommer un chat : double clic ou ✎, Entrée garde, Échap annule, vide = titre automatique ──
 let renomme=null, finirRenommage=null;
 document.addEventListener('mousedown',ev=>{if(renomme&&!(ev.target.classList&&ev.target.classList.contains('ren'))&&finirRenommage)finirRenommage();},true);   // xterm garde le focus au clic : on valide nous-mêmes
@@ -230,16 +311,17 @@ function renommer(id){
     cleTerms='';rendreTerms();const t=terms[actif];if(t)t.term.focus();};
   finirRenommage=()=>finir(true);
   i.onkeydown=ev=>{ev.stopPropagation();if(ev.key==='Enter'){ev.preventDefault();finir(true);}else if(ev.key==='Escape'){ev.preventDefault();finir(false);}};
-  i.onblur=()=>{if(Date.now()-t0<300)return setTimeout(viser,0);finir(true);};   // activer() rend le focus au terminal juste après le double clici.onclick=ev=>ev.stopPropagation();i.onmousedown=ev=>ev.stopPropagation();i.ondblclick=ev=>ev.stopPropagation();
+  i.onblur=()=>{if(Date.now()-t0<300)return setTimeout(viser,0);finir(true);};   // activer() rend le focus au terminal juste après le double clic
+  i.onclick=ev=>ev.stopPropagation();i.onmousedown=ev=>ev.stopPropagation();i.ondblclick=ev=>ev.stopPropagation();
 }
 // ── ordre des onglets : on presse, on bouge de 5 px, on lâche où on veut (souris, comme dans Warp) ──
 let presse=null;
-function sousSouris(ev){const el=document.elementFromPoint(ev.clientX,ev.clientY);const t=el&&el.closest('#onglets-term .t');if(t)return t;return el&&el.closest('#onglets-term')?'fin':null;}
+function sousSouris(ev){const el=document.elementFromPoint(ev.clientX,ev.clientY);const g=el&&el.closest('#onglets-term .g');if(g)return g;const t=el&&el.closest('#onglets-term .t');if(t)return t;return el&&el.closest('#onglets-term')?'fin':null;}
 document.addEventListener('mousemove',ev=>{
   if(!presse)return;
   if(!glisseTerm){if(Math.abs(ev.clientX-presse.x)+Math.abs(ev.clientY-presse.y)<5)return;glisseTerm=presse.id;presse.el.classList.add('glisse');document.body.style.cursor='grabbing';}
   const c=sousSouris(ev);
-  if(c==='fin')marquer('fin');else if(c&&c.dataset.id!==glisseTerm)marquer(c,avantOuApres(c,ev));else marquer(null,null,true);
+  if(c==='fin')marquer('fin');else if(c&&c.dataset.g!==undefined)marquer(c,'cible');else if(c&&c.dataset.id!==glisseTerm)marquer(c,avantOuApres(c,ev));else marquer(null,null,true);
 });
 document.addEventListener('mouseup',ev=>{
   if(!presse)return;
@@ -247,35 +329,103 @@ document.addEventListener('mouseup',ev=>{
   if(!glisseTerm)return;                         // simple clic : onclick fait le travail
   const c=sousSouris(ev);const id=glisseTerm;glisseTerm=null;document.body.style.cursor='';
   marquer(null);p.el.classList.remove('glisse');
-  if(c==='fin')deplacer(id,null,false);else if(c&&c.dataset.id!==id)deplacer(id,c.dataset.id,avantOuApres(c,ev)==='avant');
+  if(c==='fin')deplacer(id,null,false);else if(c&&c.dataset.g!==undefined)mettreGroupe(id,c.dataset.g);else if(c&&c.dataset.id!==id)deplacer(id,c.dataset.id,avantOuApres(c,ev)==='avant');
   aGlisse=true;setTimeout(()=>aGlisse=false,0);
 },true);
 let aGlisse=false;
 $('onglets-term').addEventListener('click',ev=>{if(aGlisse){ev.stopPropagation();ev.preventDefault();}},true);
 function avantOuApres(d,ev){const r=d.getBoundingClientRect();return ev.clientY<r.top+r.height/2?'avant':'apres';}
-function marquer(el,pos,garder){for(const x of document.querySelectorAll('#onglets-term .t')){x.classList.remove('avant','apres');if(!el&&!garder)x.classList.remove('glisse');}$('onglets-term').classList.toggle('fin',el==='fin');if(el&&el!=='fin')el.classList.add(pos);}
+function marquer(el,pos,garder){for(const x of document.querySelectorAll('#onglets-term .g'))x.classList.remove('cible');
+  for(const x of document.querySelectorAll('#onglets-term .t')){x.classList.remove('avant','apres');if(!el&&!garder)x.classList.remove('glisse');}$('onglets-term').classList.toggle('fin',el==='fin');if(el&&el!=='fin')el.classList.add(pos);}
 function deplacer(src,cible,avant){
   if(!src||src===cible)return;
   const s=listeServeur.find(x=>x.id===src);if(!s)return;
   const l=listeServeur.filter(x=>x.id!==src);
   let i=cible===null?l.length:l.findIndex(x=>x.id===cible);if(i<0)i=l.length;else if(!avant)i++;
-  l.splice(i,0,s);listeServeur=l;ordreLocal=Date.now();cleTerms='';rendreTerms();
+  l.splice(i,0,s);
+  const voisin=cible!==null?listeServeur.find(x=>x.id===cible):l[l.length-2];   // posé à côté d'un chat : il prend sa catégorie
+  const g=voisin?(voisin.groupe||''):(s.groupe||'');if(g!==(s.groupe||''))poserGroupe(s,g);
+  listeServeur=l;ordreLocal=Date.now();cleTerms='';rendreTerms();
   fetch('/terminaux/ordre',{method:'POST',body:JSON.stringify({ordre:l.map(x=>x.id)})}).catch(()=>{});
 }
 async function nouveau(){
   if(creation)return;creation=true;
-  try{const r=await fetch('/terminaux/nouveau',{method:'POST',body:JSON.stringify({fen:FEN})});const d=await r.json();
+  const g=(listeServeur.find(s=>s.id===actif)||{}).groupe||'';
+  try{const r=await fetch('/terminaux/nouveau',{method:'POST',body:JSON.stringify({fen:FEN,groupe:g})});const d=await r.json();d.groupe=g;
     if(!listeServeur.find(s=>s.id===d.id))listeServeur.push(d);rendreTerms();activer(d.id);}
   catch(x){}finally{creation=false;}
 }
 async function fermer(id){
   fermes.set(id,Date.now());
   const idx=listeServeur.findIndex(s=>s.id===id);
+  const g=idx>=0?(listeServeur[idx].groupe||''):'';
+  if(idx>=0)memoriserFerme(listeServeur[idx]);
   listeServeur=listeServeur.filter(s=>s.id!==id);
-  if(actif===id)actif=null;
+  if(actif===id){actif=null;const n=suivant(idx,g);if(n)activer(n);}
   rendreTerms();
   try{await fetch('/terminaux/'+id+'/fermer');}catch(x){}
   if(!listeServeur.length)nouveau();else if(!actif)activer(listeServeur[Math.max(0,Math.min(idx,listeServeur.length-1))].id);
+}
+// chat qui prend la place d'un chat fermé : le suivant de sa catégorie, sinon le précédent, sinon le suivant de la barre
+function suivant(idx,g){const l=listeServeur;if(!l.length||idx<0)return null;
+  const apres=l[idx],avant=l[idx-1];
+  if(apres&&(apres.groupe||'')===g)return apres.id;if(avant&&(avant.groupe||'')===g)return avant.id;
+  return (apres||avant||l[l.length-1]).id;}
+// ── catégories de chats : clic droit ou ▤ sur un onglet, ⇧⌘G pour le chat actif ; repliables, gardées à la reprise ──
+const groupesLocaux={};
+let plies=new Set();try{plies=new Set(JSON.parse(localStorage.getItem('plies')||'[]'));}catch(x){}
+function sauverPlies(){try{localStorage.setItem('plies',JSON.stringify([...plies]));}catch(x){}}
+function regrouper(l){const rang=new Map([['',0]]);for(const s of l){const g=s.groupe||'';if(!rang.has(g))rang.set(g,rang.size);}
+  return l.map((s,i)=>[s,i]).sort((a,b)=>rang.get(a[0].groupe||'')-rang.get(b[0].groupe||'')||a[1]-b[1]).map(x=>x[0]);}
+function nomsGroupes(){const v=[];for(const s of listeServeur)if(s.groupe&&!v.includes(s.groupe))v.push(s.groupe);return v;}
+function poserGroupe(s,g){g=String(g||'').replace(/\s+/g,' ').trim().slice(0,40);s.groupe=g;groupesLocaux[s.id]={g,t:Date.now()};
+  fetch('/terminaux/'+s.id+'/groupe',{method:'POST',body:JSON.stringify({groupe:g})}).catch(()=>{});}
+function mettreGroupe(id,g){const s=listeServeur.find(x=>x.id===id);if(!s)return;
+  const l=listeServeur.filter(x=>x!==s);let i=-1;l.forEach((x,k)=>{if((x.groupe||'')===g)i=k;});l.splice(i<0?l.length:i+1,0,s);   // en fin de catégorie
+  poserGroupe(s,g);listeServeur=l;ordreLocal=Date.now();cleTerms='';rendreTerms();
+  fetch('/terminaux/ordre',{method:'POST',body:JSON.stringify({ordre:l.map(x=>x.id)})}).catch(()=>{});
+  const t=terms[actif];if(t)t.term.focus();}
+function fermerMenu(){const m=$('menu-g');if(m)m.remove();}
+document.addEventListener('mousedown',ev=>{const m=$('menu-g');if(m&&!m.contains(ev.target))fermerMenu();},true);
+document.addEventListener('keydown',ev=>{if(ev.key==='Escape'&&$('menu-g')){fermerMenu();ev.preventDefault();ev.stopPropagation();const t=terms[actif];if(t)t.term.focus();}},true);   // Échap ferme le menu même quand le focus est resté dans le terminal
+function ouvrirMenu(x,y,construire){
+  fermerMenu();presse=null;
+  const m=document.createElement('div');m.id='menu-g';
+  const ligne=(txt,cls,fn,k)=>{const e=document.createElement('div');e.className='mi'+(cls?' '+cls:'');const tx=document.createElement('span');tx.textContent=txt;e.appendChild(tx);
+    if(k){const kb=document.createElement('span');kb.className='k';kb.textContent=k;e.appendChild(kb);}e.onclick=ev=>{ev.stopPropagation();fn();};m.appendChild(e);return e;};
+  const tete=txt=>{const e=document.createElement('div');e.className='mt';e.textContent=txt;m.appendChild(e);return e;};
+  construire(m,ligne,tete);
+  document.body.appendChild(m);
+  const r=m.getBoundingClientRect();m.style.left=Math.max(4,Math.min(x,innerWidth-r.width-4))+'px';m.style.top=Math.max(4,Math.min(y,innerHeight-r.height-4))+'px';
+  m.onkeydown=ev=>{if(ev.key==='Escape'){fermerMenu();const t=terms[actif];if(t)t.term.focus();}};
+  return m;
+}
+function menuChat(id,x,y){
+  const s=listeServeur.find(v=>v.id===id);if(!s)return;let champ=null;
+  ouvrirMenu(x,y,(m,ligne,tete)=>{
+    tete(titreComplet(s).slice(0,40)).classList.add('nom');
+    ligne('✎ Renommer','',()=>{fermerMenu();if(actif!==id)activer(id);setTimeout(()=>renommer(id),0);},'⇧⌘E');
+    tete('Catégorie');
+    for(const g of nomsGroupes())ligne((g===s.groupe?'✓ ':'   ')+g,g===s.groupe?'on':'',()=>{fermerMenu();mettreGroupe(id,g);});
+    champ=document.createElement('input');champ.className='mn';champ.placeholder='＋ Nouvelle catégorie…';champ.maxLength=40;m.appendChild(champ);
+    champ.onkeydown=ev=>{ev.stopPropagation();if(ev.key==='Enter'){ev.preventDefault();const v=champ.value.trim();fermerMenu();if(v){plies.delete(v);sauverPlies();mettreGroupe(id,v);}}else if(ev.key==='Escape'){fermerMenu();const t=terms[actif];if(t)t.term.focus();}};
+    champ.onmousedown=ev=>ev.stopPropagation();
+    if(s.groupe)ligne('   Sans catégorie','',()=>{fermerMenu();mettreGroupe(id,'');});
+    ligne('✕ Fermer le chat','hors danger',()=>{fermerMenu();fermer(id);},'⌘W');});
+  setTimeout(()=>{if(champ)champ.focus();},0);
+}
+function renommerGroupe(g){
+  const h=[...document.querySelectorAll('#onglets-term .g')].find(x=>x.dataset.g===g);if(!h||renomme)return;
+  renomme='g:'+g;const gn=h.querySelector('.gn');const i=document.createElement('input');i.className='ren';i.maxLength=40;i.value=g;gn.replaceWith(i);
+  let fini=false;const t0=Date.now();i.focus();i.select();
+  const finir=garder=>{if(fini)return;fini=true;renomme=null;finirRenommage=null;
+    const v=i.value.replace(/\s+/g,' ').trim();
+    if(garder&&v!==g){for(const s of listeServeur)if(s.groupe===g)poserGroupe(s,v);if(plies.delete(g)&&v)plies.add(v);sauverPlies();}   // vide = les chats sortent de la catégorie
+    cleTerms='';rendreTerms();const t=terms[actif];if(t)t.term.focus();};
+  finirRenommage=()=>finir(true);
+  i.onkeydown=ev=>{ev.stopPropagation();if(ev.key==='Enter'){ev.preventDefault();finir(true);}else if(ev.key==='Escape'){ev.preventDefault();finir(false);}};
+  i.onblur=()=>{if(Date.now()-t0<300)return setTimeout(()=>{if(!fini)i.focus();},0);finir(true);};
+  i.onclick=ev=>ev.stopPropagation();i.onmousedown=ev=>ev.stopPropagation();i.ondblclick=ev=>ev.stopPropagation();
 }
 // ── fenêtres : ⌘N une nouvelle fenêtre (nouveau chat dedans), moniteur à part à droite ──
 function nouvelleFenetre(){fetch('/fenetre?vue=principal').catch(()=>{});}
@@ -298,10 +448,13 @@ window.addEventListener('resize',ajuster);
 new ResizeObserver(ajuster).observe($('terms'));
 document.addEventListener('keydown',e=>{
   if(e.key==='Escape'&&document.body.classList.contains('plein')){sortirPlein();e.preventDefault();return;}
+  if(e.metaKey&&e.altKey&&!e.ctrlKey&&(e.key==='ArrowUp'||e.key==='ArrowDown')){voisinChat(e.key==='ArrowUp'?-1:1);e.preventDefault();return;}
   if(!e.metaKey||e.ctrlKey||e.altKey)return;
   const k=e.key.toLowerCase();
   if(k==='k'&&actif){terms[actif].term.clear();e.preventDefault();}
-  else if(k==='t'){nouveau();e.preventDefault();}
+  else if(k==='t'){if(e.shiftKey)rouvrir(recents[0]);else nouveau();e.preventDefault();}
+  else if(k==='p'&&!e.shiftKey){chercher();e.preventDefault();}
+  else if(k==='a'&&e.shiftKey){allerPret();e.preventDefault();}
   else if(k==='n'){nouvelleFenetre();e.preventDefault();}
   else if(k==='w'){if(actif)fermer(actif);e.preventDefault();}
   else if(k==='b'){const c=$('cote');c.hidden=!c.hidden;$('sepc').hidden=c.hidden;ajuster();e.preventDefault();}
@@ -310,6 +463,8 @@ document.addEventListener('keydown',e=>{
   else if(k==='o'&&e.shiftKey){ouvrirLivrable();e.preventDefault();}
   else if(k==='f'&&e.shiftKey){basculerPlein();e.preventDefault();}
   else if(k==='e'&&e.shiftKey){if(actif){const c=$('cote');if(c.hidden){c.hidden=false;$('sepc').hidden=false;ajuster();}renommer(actif);}e.preventDefault();}
+  else if(k==='g'&&e.shiftKey){if(actif){const c=$('cote');if(c.hidden){c.hidden=false;$('sepc').hidden=false;ajuster();}
+    const d=document.querySelector('#onglets-term .t[data-id="'+actif+'"]');const r=d?d.getBoundingClientRect():{left:20,bottom:60};menuChat(actif,r.left+12,r.bottom+2);}e.preventDefault();}
   else if(k==='l'){if(e.shiftKey){const a=affiche();if(a)fermerLivrable(a.id);}else basculer();e.preventDefault();}
   else if(k==='j'){if(e.shiftKey)fenetreMoniteur();else montrerMoniteur(mon.hidden,true);e.preventDefault();}
   else if(k==='v'&&e.shiftKey){basculerJarvis();e.preventDefault();}

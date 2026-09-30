@@ -36,7 +36,7 @@ TAMPON_MAX = 256 * 1024               # relecture du terminal à la (re)connexio
 # histo : chaque livrable porte le terminal (chat) qui l'a produit ; courants : terminal → id affiché ; actif : terminal au premier plan
 etat = {"histo": [], "courants": {}, "actif": None, "version": 0, "fenetre": None, "reprise": [], "dernier_dossier": None,
         "moniteur_auto": False}
-VERSION_UI = "17"                      # cache-buster des fichiers static/ui.*
+VERSION_UI = "23"                      # cache-buster des fichiers static/ui.*
 
 # ───────────────────────── sécurité ─────────────────────────
 # Le serveur pilote des terminaux : sans garde, n'importe quel site ouvert dans un navigateur pourrait y taper (CSRF,
@@ -211,7 +211,14 @@ def url_vue(e):
         return f"{ORIGINE_LIVRABLES}/md/{e['id']}?v={v}"
     if p.suffix.lower() in (".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg"):
         return f"{ORIGINE_LIVRABLES}/img/{e['id']}?v={v}"
+    if p.suffix.lower() in MEDIAS:       # vidéo ou son : lecteur sans lecture automatique
+        return f"{ORIGINE_LIVRABLES}/media/{e['id']}?v={v}"
     return f"{ORIGINE_LIVRABLES}/d/{e['id']}/{urllib.parse.quote(p.name)}?v={v}"
+
+
+# Une vidéo ou un son livré s'ouvre dans un lecteur à l'arrêt : rien ne démarre sans un clic
+#. Servi brut, WebKit le lançait seul.
+MEDIAS = (".mp4", ".mov", ".m4v", ".webm", ".mp3", ".wav", ".m4a", ".aac", ".ogg")
 
 
 def vue_ou_rien(e):
@@ -219,6 +226,25 @@ def vue_ou_rien(e):
     if e["url"] and not e["cadre"]:
         return f"{ORIGINE_LIVRABLES}/web/{e['id']}?v={e['rev']}"
     return url_vue(e)
+
+
+# Garde-son de l'aperçu : dans une page HTML
+# livrée au cadre, aucune vidéo ni aucun son ne démarre tant qu'on n'a pas cliqué ou tapé dans la page.
+# Chaque rechargement (fichier modifié) repart silencieux.
+GARDE_SON = b"""<script>(()=>{let ok=false;const P=HTMLMediaElement.prototype,jouer=P.play;
+const taire=m=>{try{m.autoplay=false;m.removeAttribute('autoplay');m.pause();}catch(_){}};
+P.play=function(){if(ok)return jouer.apply(this,arguments);taire(this);return Promise.resolve();};
+const tout=()=>document.querySelectorAll('video,audio').forEach(taire);
+new MutationObserver(()=>{if(!ok)tout();}).observe(document,{childList:true,subtree:true});
+document.addEventListener('DOMContentLoaded',()=>{if(!ok)tout();});
+const A=window.AudioContext||window.webkitAudioContext;if(A){const r=A.prototype.resume;
+A.prototype.resume=function(){return ok?r.apply(this,arguments):Promise.resolve();};}
+const go=()=>{ok=true;};for(const t of['pointerdown','keydown','touchstart'])addEventListener(t,go,{capture:true,once:true});})();</script>"""
+
+
+def avec_garde_son(corps):
+    m = re.search(rb"<head[^>]*>", corps[:8192], re.I)
+    return corps[:m.end()] + GARDE_SON + corps[m.end():] if m else GARDE_SON + corps
 
 
 PAGE_WEB_ERREUR = """<!doctype html><html><head><meta charset="utf-8"><style>html,body{{height:100%;margin:0;background:#0b0f14;color:#9fb3c8;
@@ -241,6 +267,7 @@ def relayer_web(e):
         base = f'<base href="{finale}">'.encode()
         m = re.search(rb"<head[^>]*>", corps[:4096], re.I)
         corps = corps[:m.end()] + base + corps[m.end():] if m else base + corps
+        corps = avec_garde_son(corps)
     return 200, corps, ctype
 
 
@@ -511,9 +538,10 @@ PAGE = r"""<!doctype html><html><head><meta charset="utf-8"><meta name="jeton" c
 </div>
 <div id="corps">
 <div id="cote">
- <div class="tete"><span>Chats</span><span class="n" id="n-chats"></span><span class="b nv" onclick="nouveau()" title="Nouveau chat (⌘T)">＋ Nouveau</span></div>
+ <div class="tete"><span>Chats</span><span class="n" id="n-chats"></span><span class="trv" id="n-trav" hidden></span><span class="prt" id="n-pret" hidden onclick="allerPret()"></span><span class="b nv" onclick="nouveau()" title="Nouveau chat (⌘T)">＋ Nouveau</span></div>
+ <div id="filtre"><input id="cherche" placeholder="⌕ Chercher  ⌘P" maxlength="60" spellcheck="false" autocomplete="off"><span class="fb" id="brouvrir" onclick="menuRouvrir()" title="Rouvrir un chat fermé, sa session Claude reprise (⇧⌘T : le dernier)">↺</span><span class="fb" id="baide" onclick="basculerAide()" title="Raccourcis">?</span></div>
  <div id="onglets-term"></div>
- <div id="aide"><b>⌘T</b> chat · <b>⌘N</b> fenêtre · <b>⌘W</b> fermer · <b>⌘1…9</b> · <b>⌘B</b> colonne · <b>⌘L</b> livrables · <b>⇧⌘F</b> plein écran · <b>⇧⌘E</b> renommer le chat · <b>⇧⌘D</b> télécharger · <b>⇧⌘C</b> copier le lien · <b>⇧⌘O</b> ouvrir le livrable · <b>⌘J</b> moniteur · <b>⌘↵</b> retour à la ligne<br>Glisse un onglet pour l’ordre, double clic pour le renommer, les bords pour les largeurs<br>Glisse un fichier ou colle une capture (⌘V) : son chemin s’écrit dans le chat</div>
+ <div id="aide" hidden><b>⌘T</b> chat · <b>⌘N</b> fenêtre · <b>⌘W</b> fermer · <b>⇧⌘T</b> rouvrir · <b>⌘P</b> chercher · <b>⌥⌘↑↓</b> chat précédent / suivant · <b>⇧⌘A</b> réponse prête suivante · <b>⌘1…9</b> · <b>⌘B</b> colonne · <b>⌘L</b> livrables · <b>⇧⌘F</b> plein écran · <b>⇧⌘E</b> renommer le chat · <b>⇧⌘G</b> catégorie · <b>⇧⌘D</b> télécharger · <b>⇧⌘C</b> copier le lien · <b>⇧⌘O</b> ouvrir le livrable · <b>⌘J</b> moniteur · <b>⌘↵</b> retour à la ligne<br>Glisse un onglet pour l’ordre, double clic pour le renommer, clic droit ou ⋯ pour ses actions, clic molette pour le fermer, les bords pour les largeurs<br>Glisse un fichier ou colle une capture (⌘V) : son chemin s’écrit dans le chat</div>
 </div>
 <div id="sepc" title="Glisse pour élargir ou réduire la colonne"></div>
 <div id="principal">
@@ -640,6 +668,7 @@ def noter_activite(d):
                 if (d.get("id") and e["id"] == d["id"]) or (not d.get("id") and e["outil"] == d.get("outil") and e["terminal"] == tid):
                     e["etat"] = "erreur" if d.get("erreur") else "ok"
                     e["duree"] = round(time.time() - e["t"], 2)
+                    e["t_fin"] = time.time()
                     e["sortie"] = (d.get("sortie") or "")[:3000] or None
                     e["maj"] = seq_a[0]
                     return True
@@ -674,13 +703,29 @@ sauvegarde_manuelle = {}
 
 
 def resume_activite():
-    """Pour /etat : un Claude travaille-t-il, et dans quels chats."""
-    par = {}
+    """Pour /etat : dans quels chats Claude travaille, du message envoyé (prompt) jusqu'à la fin de sa réponse (Stop),
+    réflexion entre deux outils comprise. par_terminal[tid] = {depuis, outil}."""
+    fil, fins = {}, {}
     with verrou_a:
         for e in activite:
-            if e["type"] == "outil" and e["etat"] == "en cours" and e["terminal"]:
-                par[e["terminal"]] = True
-    return {"en_cours": bool(par), "par_terminal": par}
+            tid = e["terminal"]
+            if not tid:
+                continue
+            if e["type"] == "stop":
+                fil.pop(tid, None)
+                fins[tid] = e["t"]
+                continue
+            f = fil.setdefault(tid, {"depuis": e["t"], "dernier": e["t"], "outil": None})
+            f["dernier"] = max(f["dernier"], e["t"], e.get("t_fin") or 0)
+            if e["type"] == "outil" and e["etat"] == "en cours":
+                f["outil"] = e["outil"]
+            elif e["type"] == "outil" and f["outil"] == e["outil"]:
+                f["outil"] = None
+    maintenant = time.time()
+    par = {tid: {"depuis": f["depuis"], "outil": f["outil"]} for tid, f in fil.items()
+           if tid in terminaux and maintenant - f["dernier"] < (3600 if f["outil"] else TRAVAIL_MUET_S)}
+    fini = {tid: t for tid, t in fins.items() if tid in terminaux and tid not in par}   # fin de la dernière réponse : « ✓ réponse prête » dans la colonne
+    return {"en_cours": bool(par), "par_terminal": par, "fini": fini}
 
 
 # ───────────────────────── fenêtres à part ─────────────────────────
@@ -781,6 +826,28 @@ class H(BaseHTTPRequestHandler):
         ctype = mimetypes.guess_type(str(f))[0] or "application/octet-stream"
         if ctype.startswith("text/") or ctype.endswith("javascript"):
             ctype += "; charset=utf-8"
+        plage = re.match(r"bytes=(\d*)-(\d*)", self.headers.get("Range") or "")
+        if plage and f.suffix.lower() in MEDIAS:     # requêtes Range : le lecteur peut sauter dans la vidéo
+            taille = f.stat().st_size
+            de = int(plage[1]) if plage[1] else max(0, taille - int(plage[2] or 0))
+            a = min(int(plage[2]), taille - 1) if plage[1] and plage[2] else min(taille - 1, de + 8 * 1024 * 1024 - 1)
+            if de >= taille:
+                self.send_response(416)
+                self.send_header("Content-Range", f"bytes */{taille}")
+                self.end_headers()
+                return
+            with open(f, "rb") as h:
+                h.seek(de)
+                corps = h.read(a - de + 1)
+            self.send_response(206)
+            self.send_header("Content-Type", ctype)
+            self.send_header("Content-Range", f"bytes {de}-{a}/{taille}")
+            self.send_header("Content-Length", str(len(corps)))
+            self.send_header("Accept-Ranges", "bytes")
+            self.send_header("Cache-Control", "no-store")
+            self.end_headers()
+            self.wfile.write(corps)
+            return
         return self._envoyer(200, f.read_bytes(), ctype)
 
     def do_GET(self):
@@ -793,7 +860,7 @@ class H(BaseHTTPRequestHandler):
         """None si la requête passe, sinon (code, raison). Voir « sécurité » en tête de fichier."""
         hote = (self.headers.get("Host") or "").lower()
         chemin = urllib.parse.urlparse(self.path).path
-        livrable = chemin.startswith(("/d/", "/img/", "/md/", "/web/"))
+        livrable = chemin.startswith(("/d/", "/img/", "/md/", "/web/", "/media/"))
         if hote == HOTE_LIVRABLES:
             return None if livrable and self.command == "GET" else (403, "origine des livrables : fichiers seulement")
         if hote != HOTE_APP:
@@ -872,6 +939,7 @@ class H(BaseHTTPRequestHandler):
                      "courants": dict(etat["courants"]), "actif": etat["actif"], "version": etat["version"]}
             d["terminaux"] = liste_terminaux()
             d["activite"] = resume_activite()
+            d["cwd_defaut"] = abreger(str(DOSSIER_DEPART))
             d["moniteur_fenetre"] = fenetre_ouverte("moniteur")
             d["moniteur_auto"] = bool(etat.get("moniteur_auto", False))
             d["cerveau"] = dict(sauvegarde_cerveau() or {}, manuel=dict(sauvegarde_manuelle))
@@ -957,6 +1025,17 @@ class H(BaseHTTPRequestHandler):
 html,body{{height:100%;margin:0;background:#111}}body{{display:flex;align-items:center;justify-content:center}}
 img{{max-width:100%;max-height:100%;object-fit:contain;box-shadow:0 0 30px #000}}</style></head>
 <body><img src="{src}"></body></html>""")
+        if chemin.startswith("/media/"):
+            e = trouver(chemin[7:])
+            if not e:
+                return self._envoyer(404, "introuvable")
+            src = f"/d/{e['id']}/{urllib.parse.quote(Path(e['cible']).name)}?v={etat['version']}"
+            son = Path(e["cible"]).suffix.lower() in (".mp3", ".wav", ".m4a", ".aac", ".ogg")
+            lecteur = f'<audio controls preload="metadata" src="{src}"></audio>' if son else f'<video controls preload="metadata" playsinline src="{src}"></video>'
+            return self._envoyer(200, avec_garde_son(f"""<!doctype html><html><head><meta charset="utf-8"><style>
+html,body{{height:100%;margin:0;background:#111}}body{{display:flex;align-items:center;justify-content:center}}
+video{{max-width:100%;max-height:100%;box-shadow:0 0 30px #000}}audio{{width:80%}}</style></head>
+<body>{lecteur}</body></html>""".encode()))
         if chemin.startswith("/web/"):
             e = trouver(chemin[5:])
             if not e or not e["url"]:
@@ -978,6 +1057,8 @@ img{{max-width:100%;max-height:100%;object-fit:contain;box-shadow:0 0 30px #000}
             f = (racine / parts[1]).resolve()
             if not f.is_relative_to(racine) or not f.is_file():
                 return self._envoyer(404, "introuvable")
+            if f.suffix.lower() in (".html", ".htm"):
+                return self._envoyer(200, avec_garde_son(f.read_bytes()))
             return self._fichier(f)
         self._envoyer(404, "introuvable")
 
@@ -1054,10 +1135,15 @@ img{{max-width:100%;max-height:100%;object-fit:contain;box-shadow:0 0 30px #000}
         if not isinstance(d, dict):
             d = {}
         if chemin == "/terminaux/nouveau":
-            tid = lancer_shell(commande=d.get("commande"), cwd=d.get("cwd"))
+            reprise_ = str(d.get("reprendre") or "")   # ⇧⌘T : rouvrir un chat fermé, sa session Claude reprise
+            if reprise_ and not re.fullmatch(r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}", reprise_):
+                return self._json({"ok": False, "erreur": "session invalide"})
+            tid = lancer_shell(commande=f"claude --resume {reprise_}" if reprise_ else d.get("commande"), cwd=os.path.expanduser(str(d.get("cwd") or "")) or None, session=reprise_ or None)
             t = terminaux.get(tid)
             if t:
                 t["fen"] = str(d.get("fen") or "0")
+                t["groupe"] = " ".join(str(d.get("groupe") or "").split())[:40]   # ⌘T range le nouveau chat dans la catégorie du chat actif
+                t["nom"] = " ".join(str(d.get("nom") or "").split())[:60]
             return self._json({"id": tid, "cwd": abreger(t["cwd0"] if t else str(DOSSIER_DEPART))})
         if chemin == "/terminaux/actif":
             tid = str(d.get("id") or "")
@@ -1115,6 +1201,12 @@ img{{max-width:100%;max-height:100%;object-fit:contain;box-shadow:0 0 30px #000}
                 t["nom"] = " ".join(str(d.get("nom") or "").split())[:60]
                 memoriser_sessions()                                       # survit à un plantage, pas seulement à `voir redemarrer`
             return self._json({"ok": bool(t), "nom": t.get("nom", "") if t else ""})
+        if chemin.startswith("/terminaux/") and chemin.endswith("/groupe"):  # catégorie du chat dans la barre de gauche, vide = sans catégorie
+            t = terminaux.get(chemin.split("/")[2])
+            if t:
+                t["groupe"] = " ".join(str(d.get("groupe") or "").split())[:40]
+                memoriser_sessions()
+            return self._json({"ok": bool(t), "groupe": t.get("groupe", "") if t else ""})
         if chemin == "/terminaux/ordre":
             with verrou_t:
                 ordre[:] = [str(x) for x in (d.get("ordre") or []) if str(x) in terminaux]
@@ -1419,7 +1511,7 @@ def memoriser_sessions():
             c = trouver(etat["courants"].get(tid) or "")
         reprise.append({"session": t["session"] if claude_de(t) else None,
                         "cwd": cwd_processus(t["pid"]) or t["cwd0"], "nom": t.get("nom") or "",
-                        "livrables": livrables, "courant": c["cible"] if c else None})
+                        "groupe": t.get("groupe") or "", "livrables": livrables, "courant": c["cible"] if c else None})
     etat["reprise"] = reprise
     sauver_etat()
     return reprise
@@ -1447,7 +1539,7 @@ def liste_terminaux():
     for tid, t in sorted(items, key=lambda kv: (pos.get(kv[0], 10 ** 9), int(kv[0]))):
         out.append({"id": tid, "cwd": abreger(cwd_processus(t["pid"]) or t["cwd0"]), "session": t["session"],
                     "claude": bool(claude_de(t)), "titre": t.get("titre") or "", "nom": t.get("nom") or "",
-                    "fen": t.get("fen") or "0"})
+                    "groupe": t.get("groupe") or "", "fen": t.get("fen") or "0"})
     return out
 
 
@@ -1538,6 +1630,41 @@ def autoriser_micro():
         log("micro :", x)
 
 
+# Garde-son WebKit : script posé par WebKit
+# dans TOUTES les frames sauf la fenêtre OS KADANS elle-même (Jarvis garde sa voix). Couvre ce que GARDE_SON côté serveur
+# ne voit pas : sites cadrés en direct (playlift.ai, artefacts claude.ai), lecteurs Bunny/YouTube imbriqués, relais.
+# Une vidéo peut tourner, mais muette, tant qu'on n'a pas cliqué ou tapé dans le cadre ; le clic se propage aux sous-cadres.
+GARDE_SON_FRAMES = r"""(()=>{if(window.top===window)return;let ok=false;
+const P=HTMLMediaElement.prototype,jouer=P.play,taire=m=>{try{if(!ok&&m&&!m.muted)m.muted=true;}catch(_){}};
+P.play=function(){taire(this);return jouer.apply(this,arguments);};
+for(const t of['play','playing','volumechange','loadedmetadata'])addEventListener(t,e=>taire(e.target),true);
+const A=window.AudioContext||window.webkitAudioContext;if(A){const r=A.prototype.resume;
+A.prototype.resume=function(){return ok?r.apply(this,arguments):Promise.resolve();};}
+const ouvrir=()=>{if(ok)return;ok=true;for(let i=0;i<frames.length;i++)try{frames[i].postMessage('garde-son-ok','*');}catch(_){}};
+for(const t of['pointerdown','keydown','touchstart'])addEventListener(t,ouvrir,{capture:true});
+addEventListener('message',e=>{if(e.data==='garde-son-ok'&&e.source===parent)ouvrir();});})();"""
+
+
+def garde_son_webkit():
+    """Chaque WKWebView créée par pywebview reçoit GARDE_SON_FRAMES en début de document, dans toutes ses frames."""
+    try:
+        from WebKit import WKUserScript
+        from webview.platforms.cocoa import BrowserView
+        init = BrowserView.__init__
+
+        def init_garde(self, *a, **k):
+            init(self, *a, **k)
+            try:
+                s = WKUserScript.alloc().initWithSource_injectionTime_forMainFrameOnly_(GARDE_SON_FRAMES, 0, False)
+                self.webview.configuration().userContentController().addUserScript_(s)
+            except Exception as x:
+                log("garde-son webkit :", x)
+        BrowserView.__init__ = init_garde
+        log("garde-son webkit posé")
+    except Exception as x:
+        log("garde-son webkit :", x)
+
+
 def main():
     global fenetre
     import webview
@@ -1548,6 +1675,7 @@ def main():
         pass
     if not TEST:
         autoriser_micro()
+    garde_son_webkit()
     signal.signal(signal.SIGPIPE, signal.SIG_IGN)
     charger_etat()
     f = etat["fenetre"] or {}
@@ -1571,6 +1699,8 @@ def main():
         tid = lancer_shell(commande=f"claude --resume {s}" if s else None, cwd=r.get("cwd"), session=s)
         if r.get("nom") and terminaux.get(tid):
             terminaux[tid]["nom"] = str(r["nom"])[:60]
+        if r.get("groupe") and terminaux.get(tid):
+            terminaux[tid]["groupe"] = str(r["groupe"])[:40]
         ouverts += 1
         for l in reversed(r.get("livrables") or []):      # les livrables du chat reviennent avec lui, le plus récent en tête
             if isinstance(l, dict) and _re.match(r"https?://127\.0\.0\.1:(?!%d/)" % PORT, str(l.get("cible") or "")):

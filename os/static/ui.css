@@ -84,6 +84,20 @@ body.fx .glow2{text-shadow:var(--glow2)}
 .t .ia{width:6px;height:6px;border-radius:50%;background:var(--tx3);flex:none}
 .t .ia.on{background:var(--ac);box-shadow:0 0 6px var(--ac)}
 .t .ia.trav{background:var(--am);box-shadow:0 0 6px var(--am);animation:pulse 1s infinite}
+/* chat où Claude travaille : barre et fond qui clignotent, chrono sous le titre */
+.t.trav{border-color:var(--am);animation:trav-fond 1.4s ease-in-out infinite}
+.t.trav::before{content:"";position:absolute;left:0;top:3px;bottom:3px;width:3px;border-radius:2px;background:var(--am);box-shadow:0 0 8px var(--am);animation:pulse .9s infinite}
+.t.trav .sous{color:var(--am)}
+.t.trav .ia.trav{width:8px;height:8px}
+@keyframes trav-fond{0%,100%{background:transparent;box-shadow:none}50%{background:color-mix(in srgb,var(--am) 16%,transparent);box-shadow:0 0 10px color-mix(in srgb,var(--am) 35%,transparent)}}
+.tete .trv{color:var(--am);white-space:nowrap;font-weight:700;letter-spacing:.06em;text-transform:none;animation:pulse 1.2s infinite}
+#save{display:flex;align-items:center;gap:7px;margin:6px;padding:7px 10px;border:1px solid var(--ac);border-radius:3px;cursor:pointer;color:var(--ac);background:var(--acf);font-size:11px}
+#save:hover{box-shadow:var(--glow)}
+#save .lb{font-weight:700;letter-spacing:.14em}
+#save .sv{color:var(--tx2);font-size:10px}
+#save .qd{margin-left:auto;color:var(--tx3);font-size:10px;font-variant-numeric:tabular-nums}
+#save.en{color:var(--am);border-color:var(--am)}#save.en .ic{animation:pulse .7s infinite}#save.en .qd{color:var(--am)}
+#save.ok .qd{color:var(--ac)}#save.ko{border-color:var(--rg)}#save.ko .qd{color:var(--rg)}
 .t .pt{position:absolute;left:3px;top:11px;width:6px;height:6px;border-radius:50%;background:var(--am);box-shadow:0 0 6px var(--am);display:none}.t.nouveau .pt{display:block}
 .t .x{position:absolute;right:7px;top:6px;color:var(--tx3);display:none;padding:0 4px}.t:hover .x{display:block}.t .x:hover{color:var(--rg)}
 .t .ed{position:absolute;right:24px;top:6px;color:var(--tx3);display:none;padding:0 4px}.t:hover .ed{display:block}.t .ed:hover{color:var(--ac)}
@@ -91,6 +105,28 @@ body.fx .glow2{text-shadow:var(--glow2)}
 .t .ren{flex:1;min-width:0;background:var(--fond,var(--pan));color:var(--tx);border:1px solid var(--ac);border-radius:2px;font:inherit;font-size:12px;padding:1px 4px;outline:none}
 .t.glisse{opacity:.35}.t.avant{box-shadow:0 -2px 0 0 var(--ac2)}.t.apres{box-shadow:0 2px 0 0 var(--ac2)}
 #onglets-term.fin{box-shadow:inset 0 -2px 0 0 var(--ac2)}
+/* catégories de chats : en-tête repliable, chats en retrait, pulse sur l'en-tête replié si un chat y travaille */
+#onglets-term .g{display:flex;align-items:center;gap:6px;margin:8px 0 2px;padding:4px 8px;border-radius:3px;cursor:pointer;color:var(--ac2);font-size:10px;letter-spacing:.14em;text-transform:uppercase;border:1px dashed transparent;position:relative}
+#onglets-term .g:first-child{margin-top:2px}
+#onglets-term .g:hover{background:var(--pan2)}
+#onglets-term .g .fl{width:9px;color:var(--tx3)}
+#onglets-term .g .gn{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:700}
+#onglets-term .g .gc{color:var(--tx3);letter-spacing:.05em}
+#onglets-term .g .gt{color:var(--am);text-transform:none;letter-spacing:.04em;font-weight:700;animation:pulse 1.2s infinite}
+#onglets-term .g.trav{border-color:var(--am);animation:trav-fond 1.4s ease-in-out infinite}
+#onglets-term .g.nouveau::after{content:"";position:absolute;left:1px;top:9px;width:5px;height:5px;border-radius:50%;background:var(--am);box-shadow:0 0 6px var(--am)}
+#onglets-term .g.cible{border-color:var(--ac2);background:var(--ac2f)}
+#onglets-term .g .ren{text-transform:none;letter-spacing:0}
+.t.dans-g{margin-left:8px}
+.t .titre{padding-right:40px}
+#menu-g{position:fixed;z-index:1000;min-width:170px;max-width:260px;background:var(--pan);border:1px solid var(--ac2);border-radius:3px;box-shadow:var(--glow2),0 8px 24px rgba(0,0,0,.4);padding:4px;font-size:11.5px}
+#menu-g .mt{padding:4px 8px;color:var(--tx3);font-size:9.5px;letter-spacing:.14em;text-transform:uppercase}
+#menu-g .mi{padding:5px 8px;border-radius:2px;cursor:pointer;color:var(--tx);white-space:pre;overflow:hidden;text-overflow:ellipsis}
+#menu-g .mi:hover{background:var(--pan2);color:var(--ac2)}
+#menu-g .mi.on{color:var(--ac2)}
+#menu-g .mi.hors{color:var(--tx3);border-top:1px solid var(--ligne);margin-top:3px}
+#menu-g .mn{display:block;width:100%;box-sizing:border-box;margin:3px 0;background:var(--bg2,var(--pan2));color:var(--tx);border:1px solid var(--ligne2);border-radius:2px;font:inherit;padding:5px 8px;outline:none}
+#menu-g .mn:focus{border-color:var(--ac2)}
 #aide{padding:8px 12px;color:var(--tx3);font-size:10px;line-height:1.6;border-top:1px solid var(--ligne)}
 #aide b{color:var(--tx2);font-weight:500}
 
@@ -261,3 +297,47 @@ body.plein #haut{flex:1;height:auto!important}
 .d{position:relative;z-index:1;background:var(--pan);padding-left:4px}
 .bl.ferme{border-color:var(--rg);color:var(--rg);background:transparent}
 .bl.ferme:hover{background:var(--rg);color:var(--bg)}
+#powered{display:inline-flex;align-items:center;gap:6px;color:var(--tx3);font-size:9.5px;letter-spacing:.04em}
+#powered .pl-marque{display:inline-flex;align-items:center;gap:4px;color:var(--tx2)}
+#powered .pl-logo{height:10px;width:10px;display:block;overflow:visible}
+#powered .pl-palier{fill:currentColor;animation:pl-palier 4s steps(1) infinite}
+#powered .pl-palier-d{animation-delay:.22s}
+#powered .pl-montee{fill:#FF4A1C;animation:pl-montee 2.2s ease-in-out infinite}
+#powered:hover .pl-montee{animation-duration:.6s}
+#powered b{font-weight:700;letter-spacing:.01em}
+#powered b i{font-style:normal;color:#FF4A1C}
+#powered .pl-curseur{display:inline-block;width:4px;height:8px;background:#FF4A1C;margin-left:1px;animation:pl-curseur 1.05s steps(1) infinite}
+@keyframes pl-palier{0%,88%{opacity:1}90%,92%{opacity:.1}94%{opacity:1}96%{opacity:.25}98%,100%{opacity:1}}
+@keyframes pl-montee{0%,100%{filter:drop-shadow(0 0 3px rgba(255,74,28,.85))}50%{filter:drop-shadow(0 0 0 rgba(255,74,28,0))}}
+@keyframes pl-curseur{0%,49%{opacity:1}50%,100%{opacity:0}}
+/* boutons du livrable sur leur propre ligne, au-dessus des onglets (28/09) */
+#barre{flex-wrap:wrap;row-gap:5px}
+#barre .d{order:-1;flex:1 0 100%;justify-content:flex-end;padding-left:0;background:transparent}
+
+/* ── colonne des chats v23 : recherche, réponse prête, menu ⋯, rouvrir ── */
+#filtre{display:flex;align-items:center;gap:4px;padding:6px 6px 4px}
+#cherche{flex:1;min-width:0;background:var(--bg2,var(--pan2));color:var(--tx);border:1px solid var(--ligne2);border-radius:3px;font:inherit;font-size:11px;padding:5px 8px;outline:none}
+#cherche:focus{border-color:var(--ac);box-shadow:var(--glow)}
+#cherche::placeholder{color:var(--tx3)}
+#filtre .fb{flex:none;width:24px;height:24px;display:flex;align-items:center;justify-content:center;border:1px solid var(--ligne2);border-radius:3px;color:var(--tx2);cursor:pointer;font-size:12px}
+#filtre .fb:hover,#filtre .fb.on{color:var(--ac);border-color:var(--ac);background:var(--acf)}
+.tete .prt{color:var(--ac);font-weight:700;letter-spacing:.04em;cursor:pointer;padding:0 4px;border:1px solid var(--ac);border-radius:3px;background:var(--acf)}
+.tete .prt:hover{box-shadow:var(--glow)}
+.t .mu{position:absolute;right:24px;top:5px;color:var(--tx3);display:none;padding:0 4px;font-weight:700;letter-spacing:.05em}
+.t:hover .mu,.t.on .mu{display:block}.t .mu:hover{color:var(--ac2)}
+.t.on .x{display:block}
+.t.renomme .mu{display:none!important}
+.t .ia.pret{background:var(--ac);box-shadow:0 0 8px var(--ac);width:8px;height:8px}
+.t.pret{border-color:var(--ac)}
+.t.pret .sous{color:var(--ac)}
+.t.pret .tx{font-weight:700}
+#onglets-term .g.pret{border-color:var(--ac)}
+#onglets-term .g.pret .gt{color:var(--ac)}
+#onglets-term .rien{padding:10px;color:var(--tx3);font-size:11px}
+#menu-g .mi{display:flex;gap:12px;align-items:center}
+#menu-g .mi>span:first-child{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis}
+#menu-g .mi .k{color:var(--tx3);font-size:10px}
+#menu-g .mi.danger:hover{color:var(--rg)}
+#menu-g .mi.vide{color:var(--tx3);cursor:default}
+#menu-g .mt.nom{color:var(--tx);text-transform:none;letter-spacing:0;font-size:11px;font-weight:700;border-bottom:1px solid var(--ligne);margin-bottom:3px;padding-bottom:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#onglets-term .t.premier:not(.on){border-color:var(--ligne2);background:var(--pan2)}

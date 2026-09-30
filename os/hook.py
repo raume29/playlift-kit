@@ -144,6 +144,8 @@ def activite(d, ev):
 
 
 def livrable(d):
+    if os.environ.get("TEARDOWN_JOB"):   # teardown du démon en fond : rien dans l'OS (29/09/2026)
+        return
     outil = d.get("tool_name", "")
     entree = d.get("tool_input") or {}
     cibles = []
