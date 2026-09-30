@@ -72,6 +72,12 @@ cd ~/playlift-kit/os && cp jarvis.env.exemple jarvis.env && open -e jarvis.env
 
 Colle ta clé OpenAI après `OPENAI_API_KEY=` ([platform.openai.com](https://platform.openai.com/api-keys)), enregistre. La clé reste sur ton Mac : l'OS demande un jeton éphémère à chaque session vocale. Au premier clic sur l'orbe, macOS demande le micro : accepte.
 
+## Mises à jour
+
+Automatiques. À chaque ouverture, l'OS regarde s'il existe une version plus récente (4 s max, rien ne bloque sans réseau) et l'installe avant de démarrer. Pendant que l'OS est ouvert, une notification te prévient d'une nouvelle version : `voir maj` l'installe tout de suite et relance l'OS, tes chats reprennent dans leurs onglets.
+
+Seuls les fichiers du kit sont remplacés : ton `.venv`, `jarvis.env`, les modèles de Jarvis, tes chats et tes livrables ne bougent pas. Le zip est vérifié (empreinte sha256) avant qu'un seul fichier soit touché. Installation par `git clone` : la mise à jour fait un `git pull`. Version installée : `.venv/bin/python maj.py --version` ; journal : `os/maj.log`.
+
 ## Si ça coince
 
 | Symptôme | Geste |
@@ -93,7 +99,7 @@ Retire l'app, la commande `voir`, les hooks et les réglages Claude Code de l'é
 
 ## Comment c'est fait
 
-`app.py` : fenêtre pywebview, serveur local `127.0.0.1:8799` (page + API) et websocket `8798` (un pty par chat, xterm.js). `hook.py` : appelé par Claude Code à chaque outil, il pousse les livrables et nourrit le moniteur ; hors d'un terminal de l'OS il ne fait qu'afficher les livrables finis. `static/` : l'interface. `etat.json` : fenêtre, onglets, reprise. Le serveur local exige un jeton secret (fichier `.jeton-8799`, lisible par toi seul) et refuse toute requête venue d'un site web : une page ouverte dans ton navigateur ne peut pas taper dans tes terminaux. Tout est local, rien ne part sur Internet sauf Claude Code lui-même et, si tu choisis ce mode, Jarvis vers OpenAI. `jarvis_local.py` : Jarvis local, lancé à la demande par l'OS sur un port privé avec un jeton propre à chaque lancement.
+`app.py` : fenêtre pywebview, serveur local `127.0.0.1:8799` (page + API) et websocket `8798` (un pty par chat, xterm.js). `hook.py` : appelé par Claude Code à chaque outil, il pousse les livrables et nourrit le moniteur ; hors d'un terminal de l'OS il ne fait qu'afficher les livrables finis. `static/` : l'interface. `etat.json` : fenêtre, onglets, reprise. Le serveur local exige un jeton secret (fichier `.jeton-8799`, lisible par toi seul) et refuse toute requête venue d'un site web : une page ouverte dans ton navigateur ne peut pas taper dans tes terminaux. Tout est local, rien ne part sur Internet sauf Claude Code lui-même, la vérification des mises à jour (`maj.py`, un fichier version.json lu sur kits.playlift.ai, rien de personnel n'est envoyé) et, si tu choisis ce mode, Jarvis vers OpenAI. `jarvis_local.py` : Jarvis local, lancé à la demande par l'OS sur un port privé avec un jeton propre à chaque lancement.
 
 ---
 

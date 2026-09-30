@@ -3,6 +3,7 @@
 #   ./install.sh            installe (venv, app dans le Dock, commande voir, hooks Claude Code)
 #   ./install.sh --jarvis   installe aussi Jarvis local sans poser la question
 #   ./install.sh --retirer  désinstalle (app, commande, hooks) ; le dossier reste, supprime-le à la main
+#   ./install.sh --maj      lancé par maj.py quand l'installeur change : dépendances, app, voir, hooks, sans question
 set -e
 ICI="$(cd "$(dirname "$0")" && pwd)"
 NOM="OS KADANS"
@@ -23,9 +24,12 @@ if [ "$1" = "--retirer" ]; then
   exit 0
 fi
 
+MAJ=""; [ "$1" = "--maj" ] && MAJ=1
+
 echo "1/7  Python"
 PY=""
-for c in python3.13 python3.12 python3.11 python3.10 python3 \
+[ -n "$MAJ" ] && [ -x "$ICI/.venv/bin/python" ] && PY="$ICI/.venv/bin/python"
+[ -z "$PY" ] && for c in python3.13 python3.12 python3.11 python3.10 python3 \
          /opt/homebrew/bin/python3.1[0-9] /usr/local/bin/python3.1[0-9] /Library/Frameworks/Python.framework/Versions/3.1[0-9]/bin/python3; do
   p="$(command -v "$c" 2>/dev/null)" || continue
   if "$p" -c 'import sys; sys.exit(0 if sys.version_info >= (3, 10) else 1)' 2>/dev/null; then PY="$p"; break; fi
@@ -37,7 +41,7 @@ fi
 echo "     $("$PY" --version) ($PY)"
 
 echo "2/7  Claude Code"
-if ! command -v claude >/dev/null 2>&1 && ! zsh -lc 'command -v claude' >/dev/null 2>&1; then
+if [ -z "$MAJ" ] && ! command -v claude >/dev/null 2>&1 && ! zsh -lc 'command -v claude' >/dev/null 2>&1; then
   rouge "Claude Code n'est pas installé. Installe-le : curl -fsSL https://claude.ai/install.sh | bash"
   rouge "puis lance « claude » une fois pour te connecter, et relance ./install.sh"
   exit 1
@@ -48,11 +52,12 @@ echo "3/7  Dépendances (environnement isolé dans .venv)"
 [ -x "$ICI/.venv/bin/python" ] || "$PY" -m venv "$ICI/.venv"
 "$ICI/.venv/bin/python" -m pip install -q --upgrade pip
 "$ICI/.venv/bin/python" -m pip install -q -r "$ICI/requirements.txt"
-chmod +x "$ICI/voir" "$ICI/hook.py"
+chmod +x "$ICI/voir" "$ICI/hook.py" "$ICI/maj.py"
 echo "     ok"
 
 echo "4/7  L'app « $NOM » (Dock, Spotlight)"
-if [ -w /Applications ]; then APPS=/Applications; else APPS="$HOME/Applications"; mkdir -p "$APPS"; fi
+if [ -n "$OS_KADANS_APPS" ]; then APPS="$OS_KADANS_APPS"; mkdir -p "$APPS"   # tests
+elif [ -w /Applications ]; then APPS=/Applications; else APPS="$HOME/Applications"; mkdir -p "$APPS"; fi
 APP="$APPS/$NOM.app"
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
@@ -74,6 +79,9 @@ cat > "$APP/Contents/MacOS/OsKadans" <<LANCEUR
 # déjà ouverte : on la ramène devant ; sinon on la lance
 if curl -s -f -m 1 -H "X-Jeton: \$(cat '$ICI/.jeton-8799' 2>/dev/null)" http://127.0.0.1:8799/montrer >/dev/null 2>&1; then exit 0; fi
 cd '$ICI'
+# mise à jour à l'ouverture (4 s max si rien de neuf, jamais bloquante), puis veille : une notification par nouvelle version
+[ -f maj.py ] && '$ICI/.venv/bin/python' maj.py --lancement >/dev/null 2>&1
+[ -f maj.py ] && nohup '$ICI/.venv/bin/python' maj.py --veille >/dev/null 2>&1 &
 exec $INTERP app.py >> os.log 2>&1
 LANCEUR
 chmod +x "$APP/Contents/MacOS/OsKadans"
@@ -101,10 +109,17 @@ echo "     $APP"
 echo "5/7  Commande voir + hooks Claude Code"
 LIEN=""
 for d in /opt/homebrew/bin /usr/local/bin "$HOME/.local/bin"; do
+  [ -e "$d/voir" ] || [ -L "$d/voir" ] && [ "$(readlink "$d/voir")" != "$ICI/voir" ] && continue   # un autre « voir » : on n'y touche pas
   if [ -d "$d" ] && [ -w "$d" ] && [[ ":$PATH:" == *":$d:"* ]]; then ln -sf "$ICI/voir" "$d/voir"; LIEN="$d/voir"; break; fi
 done
 [ -n "$LIEN" ] && echo "     voir → $LIEN" || echo "     (ajoute un alias : echo \"alias voir='$ICI/voir'\" >> ~/.zshrc)"
 "$ICI/.venv/bin/python" "$ICI/hooks.py" installer | sed 's/^/     /'
+
+if [ -n "$MAJ" ]; then
+  [ -d "$ICI/modeles" ] && "$ICI/.venv/bin/python" -m pip install -q -r "$ICI/requirements-jarvis.txt"
+  vert "✅ OS KADANS v$(cat "$ICI/VERSION" 2>/dev/null) : mise à jour installée."
+  exit 0
+fi
 
 echo "6/7  Claude Code à l'identique (barre d'état 2 lignes, thème Cybernet, plein écran, style concis)"
 command -v jq >/dev/null 2>&1 || echo "     jq manque pour la barre d'état : brew install jq"
@@ -134,5 +149,6 @@ fi
 echo
 vert "✅ OS KADANS est installé."
 echo "   Lance-le : Spotlight (⌘ Espace) › « $NOM », ou tape  voir"
+echo "   Mises à jour : automatiques à chaque ouverture de l'OS (ou tout de suite : voir maj)."
 echo "   Jarvis : ⇧⌘V. Mode Local par défaut ; mode OpenAI en option (cp jarvis.env.exemple jarvis.env, colle ta clé)."
 open -a "$APP" || true

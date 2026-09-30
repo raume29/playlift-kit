@@ -9,3 +9,7 @@ __pycache__/
 .app-chemin
 modeles/
 jarvis_local.log
+maj.log
+.maj.lock
+.veille.lock
+*.maj-tmp

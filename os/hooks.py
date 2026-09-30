@@ -57,8 +57,9 @@ def ecrire(d):
 
 def installer():
     d = lire()
-    if SETTINGS.exists():
-        shutil.copy2(SETTINGS, SETTINGS.with_name("settings.json.avant-os-kadans"))
+    avant = SETTINGS.with_name("settings.json.avant-os-kadans")
+    if SETTINGS.exists() and not avant.exists():          # une mise à jour ne remplace pas la copie d'origine
+        shutil.copy2(SETTINGS, avant)
     d = nettoyer(d)
     hooks = d.setdefault("hooks", {})
     for ev in EVENEMENTS:
