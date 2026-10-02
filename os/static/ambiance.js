@@ -73,7 +73,7 @@
   function relancer(){if(!raf&&visible()){dernier=0;raf=requestAnimationFrame(image);} if(!actif)cx.clearRect(0,0,W,Hh);}
   lireCouleurs();taille();
   new ResizeObserver(()=>{taille();relancer();}).observe(zone);
-  new MutationObserver(()=>{lireCouleurs();relancer();}).observe(H,{attributes:true,attributeFilter:['data-theme','data-mode']});
+  new MutationObserver(()=>{lireCouleurs();relancer();}).observe(H,{attributes:true,attributeFilter:['data-theme','data-mode','style']});   // style : accent perso (Espace)
   new MutationObserver(relancer).observe(zone,{attributes:true,attributeFilter:['hidden']});
   document.addEventListener('visibilitychange',relancer);
   setInterval(relancer,2000);                                  // filet : volet replié puis déplié, plein écran…

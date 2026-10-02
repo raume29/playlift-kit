@@ -36,7 +36,7 @@ TAMPON_MAX = 256 * 1024               # relecture du terminal à la (re)connexio
 # histo : chaque livrable porte le terminal (chat) qui l'a produit ; courants : terminal → id affiché ; actif : terminal au premier plan
 etat = {"histo": [], "courants": {}, "actif": None, "version": 0, "fenetre": None, "reprise": [], "dernier_dossier": None,
         "moniteur_auto": False}
-VERSION_UI = "23"                      # cache-buster des fichiers static/ui.*
+VERSION_UI = "25"                      # cache-buster des fichiers static/ui.*
 
 # ───────────────────────── sécurité ─────────────────────────
 # Le serveur pilote des terminaux : sans garde, n'importe quel site ouvert dans un navigateur pourrait y taper (CSRF,
@@ -526,16 +526,10 @@ PAGE = r"""<!doctype html><html><head><meta charset="utf-8"><meta name="jeton" c
  <span class="hb" id="bjar" onclick="basculerJarvis()" title="Jarvis, assistant vocal : parle à ton chat Claude (⇧⌘V)">◈ JARVIS <kbd>⇧⌘V</kbd></span>
  <span class="hb" id="bfx" title="Effets visuels (scanlines, halos)">FX</span>
  <span class="hb" id="bmode" onclick="basculerMode()" title="Mode clair / sombre">☾</span>
- <span class="hb" id="breg" onclick="basculerReglages()" title="Thème, police, taille">⚙</span>
+ <span class="hb" id="breg" onclick="basculerReglages()" title="Espace : thème, mode, accent, polices, taille, densité (⌘,)">⚙ ESPACE</span>
  <span id="horloge">00:00:00</span>
 </div>
-<div id="reglages" hidden>
- <div><div class="l">Mode<span class="r"><span class="th" data-mode="dark">☾ sombre</span><span class="th" data-mode="light">☀ clair</span></span></div></div>
- <div><div class="l">Thème couleur</div><div class="grp" id="themes"></div></div>
- <div><div class="l">Police</div><div class="grp" id="polices"></div></div>
- <div><div class="l">Taille du terminal<span class="r" id="tailles"></span></div></div>
- <div><div class="l">Fond animé (focus)<span class="r" id="bambiance"></span></div></div>
-</div>
+<div id="reglages" hidden></div>
 <div id="corps">
 <div id="cote">
  <div class="tete"><span>Chats</span><span class="n" id="n-chats"></span><span class="trv" id="n-trav" hidden></span><span class="prt" id="n-pret" hidden onclick="allerPret()"></span><span class="b nv" onclick="nouveau()" title="Nouveau chat (⌘T)">＋ Nouveau</span></div>
@@ -562,7 +556,7 @@ PAGE = r"""<!doctype html><html><head><meta charset="utf-8"><meta name="jeton" c
  <div id="mon-corps" style="flex:1;min-height:0;display:flex;flex-direction:column"></div>
 </div>
 </div>
-<script src="/static/xterm.js"></script><script src="/static/addon-fit.js"></script><script src="/static/addon-web-links.js"></script>
+<script src="/static/xterm.js"></script><script src="/static/addon-fit.js"></script><script src="/static/addon-web-links.js"></script><script src="/static/addon-unicode11.js"></script>
 <script src="/static/moniteur.js?v=__V__"></script><script src="/static/jarvis.js?v=__V__"></script><script src="/static/ui.js?v=__V__"></script><script src="/static/ambiance.js?v=__V__"></script>
 </body></html>"""
 
