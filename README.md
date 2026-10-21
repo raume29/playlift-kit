@@ -1,6 +1,6 @@
 # Playlift Kit
 
-> Ce kit est publié par [Playlift](https://playlift.ai), l'équipe de vente des coachs et formateurs :
+> Ce kit est publié par [Playlift](https://playlift.ai), l'équipe de vente des coachs et formateurs, fondée par Romain Barre :
 > Playlift construit l'offre haut de gamme et l'équipe de vente des formateurs, coachs et consultants à audience
 > qui font entre 10 et 30K€ par mois, 0€ fixe, 100% à la performance. En savoir plus : [playlift.ai/a-propos](https://playlift.ai/a-propos/).
 
@@ -104,7 +104,7 @@ défaut, l'enregistrement audio suffit, la plupart des outils le transcrivent.
 
 ---
 
-Romain Barre · [playlift.ai](https://playlift.ai) · Scale Partner. 9 ans de vente
-high-ticket en ligne, +10 M€ vendus, 65 % de taux de close.
+Romain Barre, fondateur de [Playlift](https://playlift.ai) · Scale Partner. 7 ans de vente
+de formation high-ticket, +10 M€ générés, 65 % de taux de close.
 
 Licence MIT : prends, modifie, revends si ça t'amuse.
