@@ -1,7 +1,6 @@
 #!/bin/bash
 # OS KADANS : installation en une commande (macOS).
 #   ./install.sh            installe (venv, app dans le Dock, commande voir, hooks Claude Code)
-#   ./install.sh --jarvis   installe aussi Jarvis local sans poser la question
 #   ./install.sh --retirer  désinstalle (app, commande, hooks) ; le dossier reste, supprime-le à la main
 #   ./install.sh --maj      lancé par maj.py quand l'installeur change : dépendances, app, voir, hooks, sans question
 set -e
@@ -26,7 +25,7 @@ fi
 
 MAJ=""; [ "$1" = "--maj" ] && MAJ=1
 
-echo "1/7  Python"
+echo "1/6  Python"
 PY=""
 [ -n "$MAJ" ] && [ -x "$ICI/.venv/bin/python" ] && PY="$ICI/.venv/bin/python"
 [ -z "$PY" ] && for c in python3.13 python3.12 python3.11 python3.10 python3 \
@@ -40,7 +39,7 @@ if [ -z "$PY" ]; then
 fi
 echo "     $("$PY" --version) ($PY)"
 
-echo "2/7  Claude Code"
+echo "2/6  Claude Code"
 if [ -z "$MAJ" ] && ! command -v claude >/dev/null 2>&1 && ! zsh -lc 'command -v claude' >/dev/null 2>&1; then
   rouge "Claude Code n'est pas installé. Installe-le : curl -fsSL https://claude.ai/install.sh | bash"
   rouge "puis lance « claude » une fois pour te connecter, et relance ./install.sh"
@@ -48,14 +47,14 @@ if [ -z "$MAJ" ] && ! command -v claude >/dev/null 2>&1 && ! zsh -lc 'command -v
 fi
 echo "     ok"
 
-echo "3/7  Dépendances (environnement isolé dans .venv)"
+echo "3/6  Dépendances (environnement isolé dans .venv)"
 [ -x "$ICI/.venv/bin/python" ] || "$PY" -m venv "$ICI/.venv"
 "$ICI/.venv/bin/python" -m pip install -q --upgrade pip
 "$ICI/.venv/bin/python" -m pip install -q -r "$ICI/requirements.txt"
 chmod +x "$ICI/voir" "$ICI/hook.py" "$ICI/maj.py"
 echo "     ok"
 
-echo "4/7  L'app « $NOM » (Dock, Spotlight)"
+echo "4/6  L'app « $NOM » (Dock, Spotlight)"
 if [ -n "$OS_KADANS_APPS" ]; then APPS="$OS_KADANS_APPS"; mkdir -p "$APPS"   # tests
 elif [ -w /Applications ]; then APPS=/Applications; else APPS="$HOME/Applications"; mkdir -p "$APPS"; fi
 APP="$APPS/$NOM.app"
@@ -99,14 +98,14 @@ cat > "$APP/Contents/Info.plist" <<PLIST
   <key>CFBundleVersion</key><string>1</string>
   <key>LSMinimumSystemVersion</key><string>13.0</string>
   <key>NSHighResolutionCapable</key><true/>
-  <key>NSMicrophoneUsageDescription</key><string>Jarvis t'écoute pour parler à ton chat Claude.</string>
+  <key>NSMicrophoneUsageDescription</key><string>Une page ouverte dans OS KADANS demande le micro.</string>
 </dict></plist>
 PLIST
 codesign --force --deep -s - "$APP" >/dev/null 2>&1 || true
 echo "$APP" > "$ICI/.app-chemin"
 echo "     $APP"
 
-echo "5/7  Commande voir + hooks Claude Code"
+echo "5/6  Commande voir + hooks Claude Code"
 LIEN=""
 for d in /opt/homebrew/bin /usr/local/bin "$HOME/.local/bin"; do
   [ -e "$d/voir" ] || [ -L "$d/voir" ] && [ "$(readlink "$d/voir")" != "$ICI/voir" ] && continue   # un autre « voir » : on n'y touche pas
@@ -114,41 +113,23 @@ for d in /opt/homebrew/bin /usr/local/bin "$HOME/.local/bin"; do
 done
 [ -n "$LIEN" ] && echo "     voir → $LIEN" || echo "     (ajoute un alias : echo \"alias voir='$ICI/voir'\" >> ~/.zshrc)"
 "$ICI/.venv/bin/python" "$ICI/hooks.py" installer | sed 's/^/     /'
+# Jarvis retiré en v7 : ses fichiers ne servent plus (ta clé jarvis.env et les modèles restent, à toi de les effacer)
+rm -f "$ICI/jarvis_local.py" "$ICI/jarvis_outils.py" "$ICI/static/jarvis.js" "$ICI/requirements-jarvis.txt" "$ICI/jarvis.env.exemple" "$ICI/jarvis_local.log"
+[ -d "$ICI/modeles" ] && echo "     Jarvis n'existe plus : tu peux effacer $ICI/modeles (sa voix) et ses modèles Whisper et Qwen dans ~/.cache/huggingface/hub (~5 Go)"
 
 if [ -n "$MAJ" ]; then
-  [ -d "$ICI/modeles" ] && "$ICI/.venv/bin/python" -m pip install -q -r "$ICI/requirements-jarvis.txt"
   vert "✅ OS KADANS v$(cat "$ICI/VERSION" 2>/dev/null) : mise à jour installée."
   exit 0
 fi
 
-echo "6/7  Claude Code à l'identique (barre d'état 2 lignes, thème Cybernet, plein écran, style concis)"
+echo "6/6  Claude Code à l'identique (barre d'état 2 lignes, thème Cybernet, plein écran, style concis)"
 command -v jq >/dev/null 2>&1 || echo "     jq manque pour la barre d'état : brew install jq"
 REP=o; [ -t 0 ] && read -r -p "     Appliquer ces réglages ? [O/n] " REP
 case "$REP" in n|N|non) echo "     ignoré (plus tard : $ICI/.venv/bin/python $ICI/claude-code/configurer.py)";;
   *) "$ICI/.venv/bin/python" "$ICI/claude-code/configurer.py" | sed 's/^/     /';; esac
 
-echo "7/7  Jarvis local (voix, gratuit, rien ne sort du Mac)"
-if [ "$(uname -m)" != "arm64" ]; then
-  echo "     ignoré : il faut un Mac Apple Silicon (M1 ou plus). Jarvis reste possible en mode OpenAI."
-else
-  REP=o; [ -t 0 ] && read -r -p "     Installer Jarvis local ? ~6 Go de modèles, 16 Go de mémoire conseillés [O/n] " REP
-  case "$REP" in n|N|non) echo "     ignoré (plus tard : ./install.sh --jarvis)";;
-    *) JARVIS=1;; esac
-fi
-[ "$1" = "--jarvis" ] && JARVIS=1
-if [ -n "$JARVIS" ]; then
-  "$ICI/.venv/bin/python" -m pip install -q -r "$ICI/requirements-jarvis.txt"
-  mkdir -p "$ICI/modeles"
-  KOKORO="https://github.com/thewh1teagle/kokoro-onnx/releases/download/model-files-v1.0"
-  for f in kokoro-v1.0.onnx voices-v1.0.bin; do
-    [ -s "$ICI/modeles/$f" ] || curl -fL --progress-bar -o "$ICI/modeles/$f" "$KOKORO/$f"
-  done
-  echo "     voix Kokoro ok ; Whisper et Qwen se téléchargent au premier « clic sur l'orbe » (~5 Go, une fois)"
-fi
-
 echo
 vert "✅ OS KADANS est installé."
 echo "   Lance-le : Spotlight (⌘ Espace) › « $NOM », ou tape  voir"
 echo "   Mises à jour : automatiques à chaque ouverture de l'OS (ou tout de suite : voir maj)."
-echo "   Jarvis : ⇧⌘V. Mode Local par défaut ; mode OpenAI en option (cp jarvis.env.exemple jarvis.env, colle ta clé)."
 open -a "$APP" || true

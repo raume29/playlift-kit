@@ -59,7 +59,7 @@
   ];
 
   let debut=performance.now(),dernier=0,raf=0,ordre=[0,1,2,3,4];
-  function visible(){return actif&&!document.hidden&&!zone.hidden&&zone.offsetParent!==null;}
+  function visible(){return actif&&!document.hidden&&document.hasFocus()&&!zone.hidden&&zone.offsetParent!==null;}   // hasFocus : fenêtre derrière une autre = pause (20/10/2026, Mac chaud)
   function image(){raf=0; if(!visible()) return;
     raf=requestAnimationFrame(image); const now=performance.now();
     if(now-dernier<33) return; dernier=now;
@@ -75,7 +75,7 @@
   new ResizeObserver(()=>{taille();relancer();}).observe(zone);
   new MutationObserver(()=>{lireCouleurs();relancer();}).observe(H,{attributes:true,attributeFilter:['data-theme','data-mode','style']});   // style : accent perso (Espace)
   new MutationObserver(relancer).observe(zone,{attributes:true,attributeFilter:['hidden']});
-  document.addEventListener('visibilitychange',relancer);
+  document.addEventListener('visibilitychange',relancer); window.addEventListener('focus',relancer);
   setInterval(relancer,2000);                                  // filet : volet replié puis déplié, plein écran…
   window.ambiance=function(on){if(on===undefined)return actif;actif=!!on;try{localStorage.setItem('ambiance',actif?'1':'0');}catch(x){}cv.hidden=!actif;relancer();};
   window.ambianceScene=n=>{debut=performance.now()-n*DUREE-2000;};   // passer à la scène n (tests)

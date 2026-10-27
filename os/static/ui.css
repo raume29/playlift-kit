@@ -234,39 +234,6 @@ body.fenetre #moniteur{width:auto;max-width:none;flex:1;border:0}
 .chip.on{color:var(--ac2);border-color:var(--ac2);background:var(--ac2f)}
 .chip.am{color:var(--am);border-color:var(--am)}
 
-/* ── Jarvis : panneau flottant ou page /jarvis ── */
-#jarvis{position:absolute;right:10px;bottom:34px;width:340px;max-height:calc(100% - 50px);z-index:30;background:var(--pan);border:1px solid var(--ligne2);border-radius:4px;box-shadow:var(--ombre),var(--glow2);display:flex;flex-direction:column;overflow:hidden}
-#jarvis .tete{gap:8px}
-.jv{display:flex;flex-direction:column;align-items:center;gap:6px;padding:10px;min-height:0;overflow:auto;flex:1}
-.jv .orbe{width:170px;height:170px;cursor:pointer;flex:none;filter:drop-shadow(0 0 18px var(--ac2f))}
-.jv .etat{font-size:10.5px;letter-spacing:.3em;text-transform:uppercase;color:var(--tx2);text-align:center}
-.jv .etat b{color:var(--ac2);font-weight:600}.jv .etat .err{color:var(--rg)}
-.jv .jv-mode{display:flex;gap:4px;align-self:flex-end}.jv .jv-mode .chip.on{color:var(--ac2);border-color:var(--ac2)}
-.jv .jv-ecrire{width:100%}.jv .jv-ecrire input{width:100%;box-sizing:border-box;background:transparent;border:1px solid var(--ligne2);color:var(--tx);font:inherit;font-size:12px;padding:6px 8px;outline:none}.jv .jv-ecrire input:focus{border-color:var(--ac2)}
-.jv .transcript{font-size:12px;color:var(--tx);text-align:center;min-height:18px;max-width:100%;line-height:1.45}
-.jv .cartes{display:flex;flex-direction:column;gap:8px;width:100%}
-.carte{position:relative;border:1px solid var(--ligne);border-left:3px solid var(--ac2);padding:8px 10px;background:linear-gradient(135deg,var(--ac2f),transparent 45%);clip-path:polygon(0 0,calc(100% - 12px) 0,100% 12px,100% 100%,0 100%);animation:materialiser .4s ease}
-@keyframes materialiser{0%{transform:translateX(-16px);opacity:0;filter:brightness(2)}100%{transform:none;opacity:1;filter:none}}
-.carte.warning{border-left-color:var(--am)}.carte.result{border-left-color:var(--ac)}.carte.code .corps{font-size:11px;color:var(--tx2)}
-.carte h3{margin:0 0 5px;font-size:10px;letter-spacing:.24em;text-transform:uppercase;color:var(--ac2);display:flex;justify-content:space-between;font-weight:700}
-.carte.warning h3{color:var(--am)}.carte.result h3{color:var(--ac)}
-.carte h3 .x{cursor:pointer;color:var(--tx3);letter-spacing:0}.carte h3 .x:hover{color:var(--rg)}
-.carte .corps{font-size:12px;line-height:1.45;white-space:pre-wrap;word-break:break-word;color:var(--tx)}
-.carte .corps code{color:var(--am);background:var(--acf);padding:0 4px;border-radius:2px}.carte .corps ul{margin:4px 0 0 16px;padding:0}
-.jv .rapport{position:absolute;inset:40px 10px 10px;background:var(--pan);border:1px solid var(--ligne2);border-top:2px solid var(--ac2);padding:12px;overflow:auto;z-index:5}
-.jv .rapport .rtete{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
-.jv .rapport h2{margin:0;font-size:13px;letter-spacing:.2em;text-transform:uppercase;color:var(--ac2)}.jv .rapport .x{cursor:pointer;color:var(--tx3)}.jv .rapport .x:hover{color:var(--rg)}
-.jv .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;margin-bottom:10px}
-.jv .kpi{border:1px solid var(--ligne);border-left:3px solid var(--ac2);padding:8px 10px;background:var(--ac2f)}
-.jv .kpi .l{font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--tx3)}.jv .kpi .v{font-size:20px;font-weight:700;color:var(--tx)}.jv .kpi .d{font-size:11px;color:var(--ac)}.jv .kpi .d.neg{color:var(--rg)}
-.jv table{border-collapse:collapse;width:100%;margin-bottom:10px;font-size:11.5px}.jv th,.jv td{border:1px solid var(--ligne);padding:4px 8px;text-align:left}.jv th{color:var(--ac2);background:var(--ac2f);font-size:10px;letter-spacing:.1em;text-transform:uppercase}
-.jv .rmd{font-size:12px;line-height:1.5}
-body.fenetre.jarvis-page #corps{align-items:stretch}
-body.fenetre.jarvis-page #jarvis{position:static;width:auto;max-height:none;flex:1;border:0;box-shadow:none;border-radius:0}
-body.fenetre.jarvis-page .jv .orbe{width:min(48vh,420px);height:min(48vh,420px)}
-body.fenetre.jarvis-page .jv .transcript{font-size:15px;max-width:70%}
-body.fenetre.jarvis-page .jv .cartes{position:absolute;left:24px;top:60px;bottom:24px;width:330px;overflow:auto}
-body.fenetre.jarvis-page .jv{position:relative}
 
 /* bandeau : les raccourcis puis les libellés disparaissent quand la fenêtre se resserre */
 @media (max-width:1400px){.hb kbd{display:none}}
@@ -285,7 +252,7 @@ body.fenetre.jarvis-page .jv{position:relative}
 .bl.on{background:var(--ac);border-color:var(--ac);color:var(--on-ac)}
 #haut.plie #barre .lib{color:var(--ac2)}
 /* plein écran : le livrable prend toute la fenêtre sous le HUD */
-body.plein #cote,body.plein #sepc,body.plein #sep,body.plein #bas,body.plein #jarvis,body.plein #moniteur,body.plein #sepm{display:none!important}
+body.plein #cote,body.plein #sepc,body.plein #sep,body.plein #bas,body.plein #moniteur,body.plein #sepm{display:none!important}
 body.plein #haut{flex:1;height:auto!important}
 .bl.cp{border-color:var(--ac);color:var(--ac);background:var(--acf)}
 .bl.cp:hover,.bl.cp.on{background:var(--ac);color:var(--on-ac)}
@@ -357,7 +324,7 @@ body.plein #haut{flex:1;height:auto!important}
 @media (max-width:1320px){#hud .stat:not(.act){display:none}}
 @media (max-width:1150px){#hud #bfen,#hud #bauto{display:none}}
 /* taille de l'interface : tout sauf le terminal et le livrable */
-#hud,#cote,#barre,#pied,#moniteur,#jarvis{zoom:var(--zoom,1)}
+#hud,#cote,#barre,#pied,#moniteur{zoom:var(--zoom,1)}
 /* chiffres et raccourcis restent en mono quelle que soit la police du texte */
 #horloge,kbd,.stat b,.t .num,.ev .h,.ev .s,#save .qd,.o .qui{font-family:var(--mono)}
 /* densité compacte : colonne des chats et barres plus serrées */

@@ -6,7 +6,7 @@
     python maj.py --veille     # tant que l'OS est ouvert : vérifie toutes les 6 h, notifie une fois par version
     python maj.py --version    # la version installée
 
-Seuls les fichiers du kit sont remplacés : .venv, jarvis.env, modeles/, jetons, chats et livrables restent.
+Seuls les fichiers du kit sont remplacés : .venv, jetons, chats et livrables restent.
 Le zip est vérifié (sha256 publié dans version.json) avant qu'un seul fichier soit touché.
 """
 import fcntl
@@ -138,8 +138,6 @@ def apres(fichiers):
         return
     if "requirements.txt" in f:
         subprocess.run([PY, "-m", "pip", "install", "-q", "-r", ICI / "requirements.txt"], timeout=600)
-    if "requirements-jarvis.txt" in f and (ICI / "modeles").exists():
-        subprocess.run([PY, "-m", "pip", "install", "-q", "-r", ICI / "requirements-jarvis.txt"], timeout=900)
     if "hooks.py" in f:
         subprocess.run([PY, ICI / "hooks.py", "installer"], timeout=60)
 

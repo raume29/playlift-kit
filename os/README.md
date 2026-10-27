@@ -1,6 +1,6 @@
 # OS KADANS
 
-Une seule fenêtre pour travailler avec Claude Code : tes chats en onglets à gauche, le terminal au centre, **ce que Claude fabrique s'affiche en haut** (page HTML, PDF, image, Markdown, site), et un moniteur qui montre en direct chaque action de Claude. Jarvis intégré : tu parles, il écrit dans ton chat. En local sur ton Mac, gratuit.
+Une seule fenêtre pour travailler avec Claude Code : tes chats en onglets à gauche, le terminal au centre, **ce que Claude fabrique s'affiche en haut** (page HTML, PDF, image, Markdown, site), et un moniteur qui montre en direct chaque action de Claude.
 
 Gratuit, open source (MIT), tout tourne sur ton Mac. Aucun compte, aucun serveur, aucune donnée qui sort (hors Claude Code lui-même).
 
@@ -15,8 +15,7 @@ Gratuit, open source (MIT), tout tourne sur ton Mac. Aucun compte, aucun serveur
 | **Fichiers** | Glisse un fichier ou colle une capture (⌘V) dans le terminal : Claude reçoit son chemin. Bouton **+ Fichier** pour le sélecteur macOS. |
 | **Thèmes** | ⚙ : sombre ou clair, 5 thèmes (Ops, Ambre, Glace, Synth, Mono), 6 polices, taille du texte. |
 | **Claude Code à l'identique** | Barre d'état en deux lignes (contexte, coût, quotas 5 h et 7 j avec le rythme), thème Cybernet, plein écran, réponses concises, raccourcis. Appliqué par l'installeur, ou par les prompts de `claude-code/PROMPTS.md`. |
-| **Jarvis** | ⇧⌘V : assistant vocal. Mode **Local** par défaut (Whisper, Qwen3 8B, Kokoro sur ton Mac : gratuit, rien ne sort), mode OpenAI Realtime en option. « Dis à Claude de… » écrit dans ton chat actif, « qu'est-ce qu'il a répondu ? » te résume l'écran. Tu valides toi-même chaque autorisation, dans le chat. |
-| **Sécurité** | Serveur local verrouillé par un jeton secret (`.jeton-8799`, lisible par toi seul), toute requête venue d'un site web refusée, Jarvis ne peut ni taper dans un shell nu ni répondre à une autorisation, clés et jetons masqués dans ce qu'il lit. |
+| **Sécurité** | Serveur local verrouillé par un jeton secret (`.jeton-8799`, lisible par toi seul), toute requête venue d'un site web refusée, aucune fenêtre qui s'ouvre sans toi. |
 
 ## Installer (5 minutes)
 
@@ -44,7 +43,6 @@ Premier lancement : macOS peut demander d'ouvrir une app non signée. Clic droit
 | ⇧⌘F | livrable en plein écran |
 | ⇧⌘D / ⇧⌘C / ⇧⌘O | télécharger / copier le lien / ouvrir le livrable |
 | ⇧⌘E | renommer le chat |
-| ⇧⌘V | Jarvis |
 | ⌘K | effacer le terminal |
 
 Commande `voir`, depuis n'importe quel terminal :
@@ -60,23 +58,11 @@ voir quitter
 
 L'étape 6 de l'installeur règle Claude Code comme sur les captures : `claude-code/configurer.py` pose la barre d'état (`~/.claude/statusline-os-kadans.sh`, il faut `jq`), le thème `custom:cybernet`, `tui: fullscreen`, `outputStyle: Concise` et quatre raccourcis, sans toucher au reste de ton `settings.json`. Tu préfères que Claude le fasse devant toi, ou changer une couleur : les prompts prêts à coller sont dans [`claude-code/PROMPTS.md`](claude-code/PROMPTS.md). Retour arrière : `python3 claude-code/configurer.py retirer`.
 
-## Jarvis
-
-**Local (par défaut, Mac Apple Silicon)** : l'étape 7 de l'installeur installe l'oreille (mlx-whisper), le cerveau (Qwen3 8B 4 bits, mlx-lm) et la voix (Kokoro). Oublié ? `./install.sh --jarvis`. Au premier clic sur l'orbe, Whisper et Qwen se téléchargent (~5 Go, une fois), puis le premier chargement prend ~25 s. Jarvis tourne dans un processus à part qui s'arrête seul après 15 min sans question : la mémoire (~6 Go) n'est prise que pendant l'usage. 16 Go de mémoire conseillés. Tu peux aussi lui écrire au lieu de parler.
-
-**OpenAI (option, payant, plus rapide)** : puce OpenAI dans le panneau, puis
-
-```bash
-cd ~/playlift-kit/os && cp jarvis.env.exemple jarvis.env && open -e jarvis.env
-```
-
-Colle ta clé OpenAI après `OPENAI_API_KEY=` ([platform.openai.com](https://platform.openai.com/api-keys)), enregistre. La clé reste sur ton Mac : l'OS demande un jeton éphémère à chaque session vocale. Au premier clic sur l'orbe, macOS demande le micro : accepte.
-
 ## Mises à jour
 
 Automatiques. À chaque ouverture, l'OS regarde s'il existe une version plus récente (4 s max, rien ne bloque sans réseau) et l'installe avant de démarrer. Pendant que l'OS est ouvert, une notification te prévient d'une nouvelle version : `voir maj` l'installe tout de suite et relance l'OS, tes chats reprennent dans leurs onglets.
 
-Seuls les fichiers du kit sont remplacés : ton `.venv`, `jarvis.env`, les modèles de Jarvis, tes chats et tes livrables ne bougent pas. Le zip est vérifié (empreinte sha256) avant qu'un seul fichier soit touché. Installation par `git clone` : la mise à jour fait un `git pull`. Version installée : `.venv/bin/python maj.py --version` ; journal : `os/maj.log`.
+Seuls les fichiers du kit sont remplacés : ton `.venv`, tes chats et tes livrables ne bougent pas. Le zip est vérifié (empreinte sha256) avant qu'un seul fichier soit touché. Installation par `git clone` : la mise à jour fait un `git pull`. Version installée : `.venv/bin/python maj.py --version` ; journal : `os/maj.log`.
 
 ## Si ça coince
 
@@ -86,7 +72,6 @@ Seuls les fichiers du kit sont remplacés : ton `.venv`, `jarvis.env`, les modè
 | « Claude Code n'est pas installé » | `curl -fsSL https://claude.ai/install.sh \| bash`, lance `claude` une fois, relance |
 | L'app ne s'ouvre pas | clic droit › Ouvrir ; sinon regarde `os/os.log` |
 | Un livrable ne s'affiche pas | `voir chemin/du/fichier.html` ; les .md s'ouvrent seulement à la main |
-| Jarvis : erreur micro | Réglages Système › Confidentialité › Microphone › OS KADANS ; ou bouton **Chrome** du panneau |
 | La barre d'état reste vide | `brew install jq`, puis ouvre un nouveau chat |
 
 ## Désinstaller
@@ -99,7 +84,7 @@ Retire l'app, la commande `voir`, les hooks et les réglages Claude Code de l'é
 
 ## Comment c'est fait
 
-`app.py` : fenêtre pywebview, serveur local `127.0.0.1:8799` (page + API) et websocket `8798` (un pty par chat, xterm.js). `hook.py` : appelé par Claude Code à chaque outil, il pousse les livrables et nourrit le moniteur ; hors d'un terminal de l'OS il ne fait qu'afficher les livrables finis. `static/` : l'interface. `etat.json` : fenêtre, onglets, reprise. Le serveur local exige un jeton secret (fichier `.jeton-8799`, lisible par toi seul) et refuse toute requête venue d'un site web : une page ouverte dans ton navigateur ne peut pas taper dans tes terminaux. Tout est local, rien ne part sur Internet sauf Claude Code lui-même, la vérification des mises à jour (`maj.py`, un fichier version.json lu sur kits.playlift.ai, rien de personnel n'est envoyé) et, si tu choisis ce mode, Jarvis vers OpenAI. `jarvis_local.py` : Jarvis local, lancé à la demande par l'OS sur un port privé avec un jeton propre à chaque lancement.
+`app.py` : fenêtre pywebview, serveur local `127.0.0.1:8799` (page + API) et websocket `8798` (un pty par chat, xterm.js). `hook.py` : appelé par Claude Code à chaque outil, il pousse les livrables et nourrit le moniteur ; hors d'un terminal de l'OS il ne fait qu'afficher les livrables finis. `static/` : l'interface. `etat.json` : fenêtre, onglets, reprise. Le serveur local exige un jeton secret (fichier `.jeton-8799`, lisible par toi seul) et refuse toute requête venue d'un site web : une page ouverte dans ton navigateur ne peut pas taper dans tes terminaux. Tout est local, rien ne part sur Internet sauf Claude Code lui-même et la vérification des mises à jour (`maj.py`, un fichier version.json lu sur kits.playlift.ai, rien de personnel n'est envoyé).
 
 ---
 

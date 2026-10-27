@@ -99,11 +99,6 @@ document.addEventListener('mousedown',e=>{const r=$('reglages');if(!r.hidden&&!r
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('reglages').hidden){basculerReglages();e.preventDefault();e.stopPropagation();}},true);
 $('breg').title='Espace : thème, mode, accent, polices, taille, densité (⌘,)';
 majModeBouton();   // thème, mode et polices sont déjà posés par theme.js ; les terminaux prennent les leurs à leur création
-// ── Jarvis : panneau flottant (⇧⌘V) ──
-let jarvis=null;
-function basculerJarvis(){const j=$('jarvis');j.hidden=!j.hidden;$('bjar').classList.toggle('on2',!j.hidden);localStorage.setItem('jarvis',j.hidden?'0':'1');
-  if(!j.hidden&&!jarvis){jarvis=Jarvis($('jv-corps'),{terminal:()=>actif,surSilence:m=>$('jv-muet').classList.toggle('on',m)});$('jv-muet').classList.toggle('on',jarvis.muet());}}
-if(localStorage.getItem('jarvis')==='1')basculerJarvis();
 setInterval(()=>{$('horloge').textContent=new Date().toTimeString().slice(0,8);},500);
 // ── livrables : seulement ceux du chat actif, jamais ceux des autres chats ──
 let histo=[], courants={}, cleLivr='', srcCadre=null, ratés=0, serveur={};
@@ -528,7 +523,6 @@ document.addEventListener('keydown',e=>{
     const d=document.querySelector('#onglets-term .t[data-id="'+actif+'"]');const r=d?d.getBoundingClientRect():{left:20,bottom:60};menuChat(actif,r.left+12,r.bottom+2);}e.preventDefault();}
   else if(k==='l'){if(e.shiftKey){const a=affiche();if(a)fermerLivrable(a.id);}else basculer();e.preventDefault();}
   else if(k==='j'){if(e.shiftKey)fenetreMoniteur();else montrerMoniteur(mon.hidden,true);e.preventDefault();}
-  else if(k==='v'&&e.shiftKey){basculerJarvis();e.preventDefault();}
   else if(k===','){basculerReglages();e.preventDefault();}
   else if(e.key>='1'&&e.key<='9'){const s=listeServeur[parseInt(e.key)-1];if(s)activer(s.id);e.preventDefault();}
 });
